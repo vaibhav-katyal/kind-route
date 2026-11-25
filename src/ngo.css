@@ -1,718 +1,976 @@
 .ngo-workspace {
   min-height: 100vh;
-  background: #f7f8f5;
-  color: #293e31;
+  background: #F7F5F0;
+  color: #1A2820;
 }
+
+/* ─── NGO Sidebar ─────────────────────────────────────────────────────────── */
 .ngo-sidebar {
   position: fixed;
   inset: 0 auto 0 0;
   width: 252px;
-  padding: 30px 18px 20px;
-  background: #fff;
-  border-right: 1px solid #e1e6db;
+  padding: 28px 16px 20px;
+  background: #FDFCF8;
+  border-right: 1px solid #E2DFD8;
   display: flex;
   flex-direction: column;
   z-index: 40;
   overflow-y: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .ngo-brand {
   align-self: flex-start;
-  margin: 3px 10px 32px;
+  margin: 2px 10px 28px;
+  transition: opacity 0.2s;
 }
+
+.ngo-brand:hover {
+  opacity: 0.8;
+}
+
 .ngo-organisation {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #f1f4ec;
-  border-radius: 9px;
-  padding: 15px 12px;
+  background: rgba(79, 124, 94, 0.08);
+  border: 1px solid rgba(79, 124, 94, 0.15);
+  border-radius: 11px;
+  padding: 14px 12px;
 }
+
 .ngo-org-symbol {
-  color: #5c7850;
+  color: #4F7C5E;
 }
+
 .ngo-organisation strong {
-  font-size: 14px;
+  font-size: 13.5px;
   display: block;
   overflow-wrap: anywhere;
+  color: #1B3A2F;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
-.ngo-organisation div > span {
+
+.ngo-organisation div>span {
   display: block;
-  font-size: 12px;
-  color: #798771;
-  margin-top: 4px;
+  font-size: 11.5px;
+  color: #6B7A70;
+  margin-top: 3px;
 }
+
 .ngo-nav-label {
   font-size: 10px;
-  color: #88927e;
-  letter-spacing: 1.7px;
-  padding: 30px 13px 14px;
+  font-weight: 600;
+  color: #9BA89F;
+  letter-spacing: 1.8px;
+  padding: 28px 12px 12px;
 }
+
 .ngo-nav-item {
   display: flex;
   align-items: center;
   gap: 11px;
   text-align: left;
   width: 100%;
-  padding: 13px 12px;
-  border-radius: 7px;
-  color: #7b8675;
-  font-size: 14px;
-  margin-bottom: 5px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  color: #6B7A70;
+  font-size: 13.5px;
+  font-weight: 450;
+  letter-spacing: -0.1px;
+  margin-bottom: 2px;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
 }
+
 .ngo-nav-item span {
   flex: 1;
 }
+
 .ngo-nav-item.is-active {
-  color: #365a3c;
-  background: #eaf0e1;
-  font-weight: 600;
+  color: #1B3A2F;
+  background: rgba(79, 124, 94, 0.12);
+  font-weight: 550;
 }
+
+.ngo-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: #4F7C5E;
+  border-radius: 0 2px 2px 0;
+}
+
 .ngo-nav-item:hover {
-  background: #f0f4e9;
+  background: rgba(79, 124, 94, 0.07);
+  color: #1B3A2F;
 }
+
 .ngo-nav-item small {
-  background: #dce6ce;
-  color: #5e764b;
-  border-radius: 4px;
-  padding: 1px 5px;
+  background: rgba(79, 124, 94, 0.15);
+  color: #2A5240;
+  border-radius: 5px;
+  padding: 2px 7px;
   font-size: 11px;
+  font-weight: 500;
 }
+
 .ngo-sidebar-bottom {
   margin-top: auto;
-  padding-top: 50px;
+  padding-top: 24px;
+  border-top: 1px solid #E2DFD8;
 }
+
 .ngo-sidebar-note {
-  background: #f8f9f3;
-  border: 1px solid #eaf0e0;
-  padding: 18px;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  background: rgba(79, 124, 94, 0.06);
+  border: 1px solid rgba(79, 124, 94, 0.14);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
 }
-.ngo-sidebar-note > svg {
-  color: #81956b;
-  margin-bottom: 13px;
+
+.ngo-sidebar-note>svg {
+  color: #4F7C5E;
+  margin-bottom: 10px;
+  opacity: 0.8;
 }
+
 .ngo-sidebar-note strong {
   display: block;
-  font-size: 13px;
+  font-size: 12.5px;
+  color: #1B3A2F;
+  font-weight: 550;
 }
+
 .ngo-sidebar-note p {
-  font-size: 12px;
-  line-height: 1.8;
-  color: #849078;
-  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: #6B7A70;
+  margin-top: 6px;
 }
+
 .ngo-account {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
   text-align: left;
-  border-top: 1px solid #e9ece3;
-  padding-top: 18px;
-  margin-top: 13px;
+  padding-top: 16px;
+  margin-top: 10px;
+  transition: opacity 0.2s;
+  border-radius: 9px;
+  padding: 10px 8px;
 }
-.ngo-account > span:nth-child(2) {
+
+.ngo-account:hover {
+  background: rgba(79, 124, 94, 0.06);
+}
+
+.ngo-account>span:nth-child(2) {
   min-width: 0;
   flex: 1;
 }
+
 .ngo-account strong {
   font-size: 12px;
   display: block;
   overflow-wrap: anywhere;
+  color: #1B3A2F;
+  font-weight: 500;
 }
+
 .ngo-account small {
   display: block;
-  color: #8b9580;
+  color: #9BA89F;
   font-size: 11px;
-  margin-top: 4px;
+  margin-top: 3px;
 }
+
+/* ─── NGO Main Layout ─────────────────────────────────────────────────────── */
 .ngo-main {
   margin-left: 252px;
 }
+
 .ngo-topbar {
-  min-height: 77px;
-  border-bottom: 1px solid #e1e6db;
-  background: #fff;
+  min-height: 72px;
+  border-bottom: 1px solid #E2DFD8;
+  background: rgba(253, 252, 248, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 15px 40px;
+  padding: 14px 40px;
   font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
-.ngo-topbar > div,
-.ngo-topbar > button {
+
+.ngo-topbar>div,
+.ngo-topbar>button {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.ngo-topbar > div > span:first-of-type {
-  color: #839077;
+
+.ngo-topbar>div>span:first-of-type {
+  color: #9BA89F;
 }
+
 .ngo-topbar strong {
   font-weight: 500;
+  color: #1A2820;
 }
-.ngo-topbar > button {
-  color: #7f8b74;
+
+.ngo-topbar>button {
+  color: #6B7A70;
   font-size: 12px;
+  transition: color 0.2s;
 }
+
+.ngo-topbar>button:hover {
+  color: #1B3A2F;
+}
+
 .ngo-topbar-divider {
-  color: #d2dbc6;
-  margin: 0 7px;
+  color: #D8D4CD;
+  margin: 0 6px;
 }
+
 .ngo-mobile-menu {
   display: none;
 }
+
+/* ─── NGO Content ─────────────────────────────────────────────────────────── */
 .ngo-content {
   max-width: 1470px;
   margin: auto;
-  padding: 35px 40px;
-  animation: fade-in 0.35s ease;
+  padding: 36px 40px;
+  animation: fade-in 0.4s ease;
 }
+
 .ngo-page-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 25px;
-  margin-bottom: 30px;
+  gap: 24px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
 }
+
 .ngo-eyebrow {
-  color: #7f9070;
-  font-size: 10px;
-  letter-spacing: 1.6px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.ngo-page-heading h1 {
-  font-size: 33px;
+  color: #4F7C5E;
+  font-size: 10.5px;
+  letter-spacing: 1.7px;
   font-weight: 600;
-  letter-spacing: -1.2px;
-  line-height: 1.25;
-  margin-top: 9px;
-}
-.ngo-page-heading p:last-child {
-  color: #7f8978;
-  font-size: 14px;
-  margin-top: 10px;
-}
-.ngo-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 35px;
-}
-.ngo-summary > button {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 24px;
-  text-align: left;
-  background: #fff;
-  border: 1px solid #e2e7dc;
-  border-radius: 10px;
-}
-.ngo-summary > button:hover {
-  border-color: #b7c7a5;
-  box-shadow: 0 5px 20px #3e5e3110;
-}
-.ngo-summary > button > div > span {
-  color: #77846d;
-  font-size: 13px;
-  display: block;
-}
-.ngo-summary strong {
-  font-size: 37px;
-  font-weight: 600;
-  line-height: 1;
-  margin: 17px 0 10px;
-  display: block;
-  letter-spacing: -1px;
-}
-.ngo-summary small {
-  font-size: 12px;
-  color: #8b957f;
-}
-.ngo-summary-icon {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 43px;
-  height: 43px;
-  border-radius: 10px;
-  background: #edf2e5;
-  color: #82976c;
-  flex-shrink: 0;
+  gap: 8px;
 }
-.ngo-summary-arrow {
-  position: absolute;
-  bottom: 23px;
-  right: 25px;
-  color: #96a386;
-}
-.ngo-section-title {
-  display: flex;
-  gap: 15px;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-.ngo-section-title h2 {
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-}
-.ngo-section-title h2 > span {
-  font-size: 12px;
-  background: #eaf0e1;
-  color: #83956e;
-  padding: 3px 7px;
-  border-radius: 4px;
-  margin-left: 6px;
-}
-.ngo-section-title p {
-  color: #8a937e;
-  font-size: 13px;
-  margin-top: 6px;
-}
-.ngo-section-title > button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #698057;
-  font-size: 12px;
-}
-.ngo-collection-queue {
-  border: 1px solid #dce4d3;
-  border-radius: 11px;
-  background: #fff;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  margin-bottom: 35px;
-}
-.ngo-queue-details {
-  padding: 28px;
-}
+
 .ngo-status-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #859b68;
+  background: #4F7C5E;
+  animation: pulse-dot 2.5s ease-in-out infinite;
 }
-.ngo-queue-details h3 {
-  font-size: 23px;
+
+.ngo-page-heading h1 {
+  font-size: 32px;
   font-weight: 600;
-  letter-spacing: -0.6px;
-  margin-top: 16px;
+  letter-spacing: -1.3px;
+  line-height: 1.25;
+  margin-top: 10px;
+  color: #1A2820;
 }
-.ngo-queue-details > p {
+
+.ngo-page-heading p:last-child {
+  color: #6B7A70;
   font-size: 14px;
-  color: #7d8a72;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+/* ─── Summary Cards ───────────────────────────────────────────────────────── */
+.ngo-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.ngo-summary>button {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 22px;
+  text-align: left;
+  background: #FDFCF8;
+  border: 1px solid #E2DFD8;
+  border-radius: 13px;
+  transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+}
+
+.ngo-summary>button:hover {
+  border-color: rgba(79, 124, 94, 0.3);
+  box-shadow: 0 6px 24px rgba(27, 58, 47, 0.08);
+  transform: translateY(-2px);
+}
+
+.ngo-summary>button>div>span {
+  color: #6B7A70;
+  font-size: 12.5px;
+  display: block;
+}
+
+.ngo-summary strong {
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1;
+  margin: 15px 0 8px;
+  display: block;
+  letter-spacing: -1.5px;
+  color: #1A2820;
+}
+
+.ngo-summary small {
+  font-size: 11.5px;
+  color: #9BA89F;
+}
+
+.ngo-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: rgba(79, 124, 94, 0.1);
+  color: #4F7C5E;
+  flex-shrink: 0;
+}
+
+.ngo-summary-arrow {
+  position: absolute;
+  bottom: 22px;
+  right: 22px;
+  color: #9BA89F;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.ngo-summary>button:hover .ngo-summary-arrow {
+  color: #4F7C5E;
+  transform: translate(1px, -1px);
+}
+
+/* ─── Section Title ───────────────────────────────────────────────────────── */
+.ngo-section-title {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.ngo-section-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  color: #1A2820;
+}
+
+.ngo-section-title h2>span {
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(79, 124, 94, 0.1);
+  color: #4F7C5E;
+  padding: 2px 7px;
+  border-radius: 5px;
+  margin-left: 7px;
+  border: 1px solid rgba(79, 124, 94, 0.15);
+}
+
+.ngo-section-title p {
+  color: #6B7A70;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.ngo-section-title>button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4F7C5E;
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.ngo-section-title>button:hover {
+  color: #1B3A2F;
+}
+
+/* ─── Collection Queue ────────────────────────────────────────────────────── */
+.ngo-collection-queue {
+  border: 1px solid #E2DFD8;
+  border-radius: 14px;
+  background: #FDFCF8;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 12px rgba(27, 58, 47, 0.04);
+}
+
+.ngo-queue-details {
+  padding: 28px;
+}
+
+.ngo-queue-details h3 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.7px;
+  margin-top: 14px;
+  color: #1A2820;
+}
+
+.ngo-queue-details>p {
+  font-size: 13.5px;
+  color: #6B7A70;
   margin: 7px 0 18px;
 }
+
 .ngo-detail-line {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #7d8973;
+  color: #6B7A70;
   font-size: 13px;
   line-height: 1.5;
-  margin-top: 10px;
+  margin-top: 9px;
 }
-.ngo-detail-line > svg {
+
+.ngo-detail-line>svg {
   flex-shrink: 0;
-  color: #91a17c;
+  color: #7FAF90;
 }
+
 .ngo-queue-actions {
   display: flex;
-  gap: 11px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 23px;
+  margin-top: 22px;
 }
-.ngo-queue-details > small {
+
+.ngo-queue-details>small {
   display: block;
   font-size: 11px;
-  color: #98a08e;
-  margin-top: 15px;
+  color: #9BA89F;
+  margin-top: 14px;
 }
+
 .ngo-queue-map {
   min-height: 315px;
-  padding: 15px;
-  background: #f0f3ea;
+  padding: 14px;
+  background: rgba(234, 240, 228, 0.5);
+  border-left: 1px solid #E2DFD8;
 }
+
 .ngo-queue-map .map-container {
   height: 100%;
   min-height: 285px;
 }
+
 .ngo-queue-empty {
   grid-column: 1 / -1;
   padding: 32px;
   display: flex;
   gap: 18px;
   align-items: center;
-  background: #f4f6ee;
+  background: rgba(247, 245, 240, 0.7);
 }
+
 .ngo-queue-empty h3 {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 500;
+  color: #1A2820;
 }
+
 .ngo-queue-empty p {
   font-size: 13px;
-  color: #8a947d;
-  margin-top: 8px;
+  color: #6B7A70;
+  margin-top: 7px;
 }
+
 .ngo-queue-empty .button-outline {
   margin-left: auto;
 }
+
+/* ─── Filters ─────────────────────────────────────────────────────────────── */
 .ngo-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 22px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
+
 .ngo-category-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
 }
-.ngo-category-tabs > button {
-  border: 1px solid #e0e6d8;
-  background: #fff;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #839173;
-  padding: 9px 12px;
+
+.ngo-category-tabs>button {
+  border: 1px solid #E2DFD8;
+  background: #FDFCF8;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 450;
+  color: #6B7A70;
+  padding: 8px 12px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.ngo-category-tabs > button.is-active {
-  background: #e9efdf;
-  border-color: #cfdabd;
-  color: #426236;
+
+.ngo-category-tabs>button:hover {
+  background: #F0EDE8;
+  color: #1B3A2F;
 }
+
+.ngo-category-tabs>button.is-active {
+  background: rgba(79, 124, 94, 0.1);
+  border-color: rgba(79, 124, 94, 0.25);
+  color: #1B3A2F;
+  font-weight: 500;
+}
+
 .ngo-search {
   display: flex;
   align-items: center;
-  gap: 7px;
-  background: #fff;
-  border: 1px solid #e0e6d8;
-  padding: 9px 12px;
-  border-radius: 6px;
-  color: #98a288;
+  gap: 8px;
+  background: #FDFCF8;
+  border: 1px solid #E2DFD8;
+  padding: 9px 13px;
+  border-radius: 9px;
+  color: #9BA89F;
   margin-left: auto;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
+
+.ngo-search:focus-within {
+  border-color: #4F7C5E;
+  box-shadow: 0 0 0 3px rgba(79, 124, 94, 0.08);
+}
+
 .ngo-search input {
   width: 190px;
   outline: none;
   background: transparent;
   font-size: 13px;
-  color: #425c35;
+  color: #1A2820;
 }
+
+/* ─── Donation Grid ───────────────────────────────────────────────────────── */
 .ngo-donation-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: 18px;
 }
+
 .ngo-donation-card {
-  background: #fff;
-  border: 1px solid #e2e7dc;
-  border-radius: 10px;
+  background: #FDFCF8;
+  border: 1px solid #E2DFD8;
+  border-radius: 13px;
   overflow: hidden;
-  transition: box-shadow 0.3s;
+  transition: box-shadow 0.3s, transform 0.3s, border-color 0.3s;
 }
+
 .ngo-donation-card:hover {
-  box-shadow: 0 8px 25px #354b2810;
+  box-shadow: 0 10px 36px rgba(27, 58, 47, 0.1);
+  transform: translateY(-3px);
+  border-color: #D0CCC5;
 }
+
 .ngo-card-photo {
   width: 100%;
-  height: 180px;
+  height: 175px;
   display: block;
   position: relative;
   overflow: hidden;
 }
+
 .ngo-card-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: saturate(0.75);
-  transition: transform 0.5s;
+  filter: saturate(0.78);
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.4s;
 }
-.ngo-card-photo:hover img {
-  transform: scale(1.04);
+
+.ngo-donation-card:hover .ngo-card-photo img {
+  transform: scale(1.07);
+  filter: saturate(0.9);
 }
-.ngo-card-photo > span {
+
+.ngo-card-photo>span {
   position: absolute;
-  left: 13px;
-  top: 13px;
-  background: #fffefaed;
-  border-radius: 4px;
+  left: 10px;
+  top: 10px;
+  background: rgba(253, 252, 248, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 6px;
   font-size: 11px;
-  color: #687e52;
-  padding: 5px 8px;
+  font-weight: 500;
+  color: #1B3A2F;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
+
 .ngo-card-content {
-  padding: 20px;
+  padding: 18px;
 }
+
 .ngo-card-content h3 {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 600;
-  line-height: 1.5;
-  margin-top: 10px;
+  line-height: 1.4;
+  margin-top: 9px;
+  letter-spacing: -0.2px;
+  color: #1A2820;
 }
-.ngo-card-content > p {
-  font-size: 14px;
-  color: #7a8970;
-  margin: 6px 0 16px;
+
+.ngo-card-content>p {
+  font-size: 13.5px;
+  color: #6B7A70;
+  margin: 5px 0 14px;
 }
+
 .ngo-card-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border-top: 1px solid #e9ede2;
-  padding-top: 16px;
-  margin-top: 20px;
+  border-top: 1px solid #E8E5DF;
+  padding-top: 14px;
+  margin-top: 18px;
 }
-.ngo-card-bottom > span {
-  color: #8a967f;
+
+.ngo-card-bottom>span {
+  color: #9BA89F;
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .ngo-release-button {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #929884;
+  color: #9BA89F;
   font-size: 11px;
-  margin-top: 15px;
+  margin-top: 12px;
+  font-weight: 450;
+  transition: color 0.15s;
 }
+
 .ngo-release-button:hover {
-  color: #8b604b;
+  color: #A05040;
 }
+
+/* ─── Empty State ─────────────────────────────────────────────────────────── */
 .ngo-empty-state {
-  border: 1px dashed #d7dfcd;
-  padding: 50px 25px;
+  border: 1.5px dashed #D8D4CD;
+  padding: 54px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  border-radius: 9px;
-  color: #8a9a78;
+  border-radius: 13px;
+  color: #6B7A70;
+  background: rgba(247, 245, 240, 0.5);
 }
+
+.ngo-empty-state svg {
+  opacity: 0.4;
+  margin-bottom: 14px;
+}
+
 .ngo-empty-state h3 {
-  font-size: 19px;
-  color: #627a4f;
-  margin: 17px 0 8px;
+  font-size: 18px;
+  color: #1B3A2F;
+  font-weight: 500;
+  margin-bottom: 6px;
 }
+
 .ngo-empty-state p {
-  font-size: 14px;
+  font-size: 13.5px;
 }
+
 .ngo-empty-state button {
-  margin-top: 22px;
+  margin-top: 20px;
 }
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
 .ngo-footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 25px;
-  border-top: 1px solid #e1e6db;
+  gap: 12px 24px;
+  border-top: 1px solid #E2DFD8;
   margin-top: 40px;
-  padding-top: 23px;
-  font-size: 11px;
-  color: #929c87;
+  padding-top: 22px;
+  font-size: 11.5px;
+  color: #9BA89F;
 }
-.ngo-footer > span:nth-child(2) {
+
+.ngo-footer>span:nth-child(2) {
   margin-left: auto;
 }
+
 .ngo-footer button {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #698354;
+  color: #4F7C5E;
+  font-weight: 450;
+  transition: color 0.2s;
 }
+
+.ngo-footer button:hover {
+  color: #1B3A2F;
+}
+
+/* ─── Scrim ───────────────────────────────────────────────────────────────── */
 .ngo-menu-scrim {
   display: none;
 }
+
+/* ─── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(79, 124, 94, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(79, 124, 94, 0.07);
+  }
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 1250px) {
   .ngo-donation-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .ngo-content {
-    padding: 30px;
+    padding: 28px;
   }
-  .ngo-summary > button {
+
+  .ngo-summary>button {
     padding: 18px;
   }
-  .ngo-summary > button > div > span {
-    font-size: 12px;
-  }
-  .ngo-summary-icon {
-    width: 36px;
-    height: 36px;
-  }
+
   .ngo-collection-queue {
     grid-template-columns: 1fr 1fr;
   }
+
   .ngo-queue-details {
-    padding: 23px;
+    padding: 22px;
   }
 }
+
 @media (max-width: 1023px) {
   .ngo-sidebar {
     transform: translateX(-100%);
-    transition: transform 0.3s;
   }
+
   .ngo-sidebar.is-open {
     transform: translateX(0);
   }
+
   .ngo-main {
     margin-left: 0;
   }
+
   .ngo-mobile-menu {
     display: flex;
     align-items: center;
+    color: #6B7A70;
+    padding: 7px 9px;
+    border-radius: 8px;
   }
+
+  .ngo-mobile-menu:hover {
+    background: rgba(79, 124, 94, 0.08);
+  }
+
   .ngo-topbar {
-    padding: 20px 30px;
+    padding: 18px 28px;
   }
+
   .ngo-menu-scrim {
     display: block;
     position: fixed;
     inset: 0;
-    background: #182e2266;
+    background: rgba(10, 20, 15, 0.45);
     z-index: 35;
+    backdrop-filter: blur(2px);
   }
 }
+
 @media (max-width: 640px) {
   .ngo-topbar {
-    padding: 18px 20px;
-    min-height: 65px;
+    padding: 16px 18px;
+    min-height: 64px;
     font-size: 12px;
   }
-  .ngo-topbar > button {
+
+  .ngo-topbar>button {
     font-size: 0;
     gap: 5px;
   }
-  .ngo-topbar > div {
+
+  .ngo-topbar>div {
     gap: 8px;
   }
+
   .ngo-topbar-divider {
     margin: 0;
   }
+
   .ngo-content {
-    padding: 28px 20px;
+    padding: 24px 18px;
   }
+
   .ngo-page-heading {
     flex-wrap: wrap;
-    gap: 18px;
+    gap: 16px;
   }
+
   .ngo-page-heading h1 {
-    font-size: 29px;
+    font-size: 28px;
   }
-  .ngo-page-heading p:last-child {
-    font-size: 13px;
-    line-height: 1.7;
-  }
+
   .ngo-summary {
     grid-template-columns: 1fr;
     gap: 10px;
-    margin-bottom: 30px;
+    margin-bottom: 28px;
   }
-  .ngo-summary > button {
-    padding: 17px;
+
+  .ngo-summary>button {
+    padding: 16px;
   }
-  .ngo-summary > button > div {
+
+  .ngo-summary>button>div {
     display: grid;
     grid-template-columns: 1fr auto;
-    column-gap: 15px;
+    column-gap: 14px;
     align-items: center;
     width: 100%;
-    padding-right: 40px;
+    padding-right: 36px;
   }
+
   .ngo-summary strong {
-    font-size: 28px;
+    font-size: 26px;
     margin: 0;
     grid-column: 2;
     grid-row: 1 / 3;
   }
-  .ngo-summary small {
-    font-size: 11px;
-    margin-top: 5px;
-  }
-  .ngo-summary > button > .ngo-summary-icon {
+
+  .ngo-summary>button>.ngo-summary-icon {
     display: none;
   }
+
   .ngo-summary-arrow {
-    right: 17px;
-    bottom: 28px;
+    right: 16px;
+    bottom: 24px;
   }
-  .ngo-section-title {
-    align-items: flex-start;
-  }
-  .ngo-section-title h2 {
-    font-size: 18px;
-  }
-  .ngo-section-title p {
-    font-size: 12px;
-    line-height: 1.6;
-  }
-  .ngo-section-title > button {
-    font-size: 11px;
-    flex-shrink: 0;
-    max-width: 106px;
-    line-height: 1.7;
-  }
+
   .ngo-collection-queue {
     grid-template-columns: 1fr;
   }
+
   .ngo-queue-map {
-    min-height: 225px;
-  }
-  .ngo-queue-map .map-container {
     min-height: 220px;
   }
-  .ngo-queue-details {
-    padding: 23px;
+
+  .ngo-queue-map .map-container {
+    min-height: 210px;
   }
+
   .ngo-queue-empty {
     flex-wrap: wrap;
-    padding: 24px;
+    padding: 22px;
   }
-  .ngo-queue-empty > div {
+
+  .ngo-queue-empty>div {
     flex: 1;
-    min-width: 175px;
+    min-width: 165px;
   }
+
   .ngo-queue-empty .button-outline {
     margin-left: 0;
   }
+
   .ngo-donation-grid {
     grid-template-columns: 1fr;
   }
+
   .ngo-card-photo {
-    height: 205px;
+    height: 200px;
   }
+
   .ngo-search {
     margin-left: 0;
     width: 100%;
   }
+
   .ngo-search input {
     width: 100%;
   }
+
   .ngo-category-tabs {
-    gap: 6px;
+    gap: 5px;
   }
-  .ngo-category-tabs > button {
-    font-size: 11px;
-    padding: 8px 10px;
+
+  .ngo-category-tabs>button {
+    font-size: 11.5px;
+    padding: 7px 10px;
   }
-  .ngo-footer {
-    font-size: 10px;
-  }
-  .ngo-footer > span:nth-child(2) {
+
+  .ngo-footer>span:nth-child(2) {
     margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { animate, stagger } from "motion";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -241,6 +242,29 @@ export default function App({
     notify("Your certificate has been downloaded.");
   }
 
+  // Animate sidebar nav items on mount
+  const sidebarRef = useRef(null);
+  useEffect(() => {
+    if (!sidebarRef.current) return;
+    const items = sidebarRef.current.querySelectorAll(".nav-item");
+    animate(
+      items,
+      { opacity: [0, 1], x: [-12, 0] },
+      { duration: 0.4, delay: stagger(0.06, { start: 0.1 }), easing: [0.16, 1, 0.3, 1] },
+    );
+  }, [isNgo]);
+
+  // Animate main content on view change
+  const mainRef = useRef(null);
+  useEffect(() => {
+    if (!mainRef.current) return;
+    animate(
+      mainRef.current,
+      { opacity: [0, 1], y: [10, 0] },
+      { duration: 0.4, easing: [0.16, 1, 0.3, 1] },
+    );
+  }, [view]);
+
   return (
     <div className="min-h-screen bg-canvas text-ink">
       {isNgo ? (
@@ -276,32 +300,31 @@ export default function App({
           )}
           <aside
             className={`sidebar ${menu ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+            ref={sidebarRef}
           >
-            <div className="px-7 pt-9 pb-10">
-              <button onClick={onHome} aria-label="Back to KindRoute home">
+            <div className="px-7 pt-8 pb-8">
+              <button onClick={onHome} aria-label="Back to KindRoute home" className="transition-opacity hover:opacity-75">
                 <Brand />
               </button>
             </div>
-            <div className="px-6">
+            <div className="px-5 mb-1">
               <div className="workspace-switch">
-                <span className="rounded-lg bg-white p-2 text-forest">
-                  <Heart size={17} />
+                <span className="rounded-lg bg-forest/10 p-2 text-sage">
+                  <Heart size={16} />
                 </span>
-                <div className="flex-1">
-                  <strong className="block text-xs font-semibold">
+                <div className="flex-1 min-w-0">
+                  <strong className="block text-xs font-semibold text-ink truncate">
                     {isNgo ? "NGO workspace" : "Donor workspace"}
                   </strong>
-                  <span className="text-[13px] text-muted">
+                  <span className="text-[12px] text-muted">
                     A space for your kindness
                   </span>
                 </div>
-                <ChevronDown size={14} />
+                <ChevronDown size={13} className="text-muted flex-shrink-0" />
               </div>
             </div>
-            <p className="px-8 mt-8 mb-3 text-[12px] font-semibold tracking-[1.7px] text-muted">
-              YOUR WORKSPACE
-            </p>
-            <nav className="space-y-1 px-4">
+            <p className="px-7 mt-6 mb-2 text-[10.5px] font-semibold tracking-[1.8px] text-muted-lt uppercase">Your Workspace</p>
+            <nav className="space-y-0.5 px-3">
               {navItems.map(({ name, icon: Icon }) => (
                 <button
                   key={name}
@@ -324,19 +347,23 @@ export default function App({
                 </button>
               ))}
             </nav>
-            <div className="sidebar-bottom">
+            <div className="sidebar-bottom px-3">
+              <div className="kindness-note mb-4">
+                <p className="text-xs font-medium text-forest mb-1">Small acts add up.</p>
+                <p className="text-[11.5px] text-muted leading-5">Every donation you share makes a difference in someone's day.</p>
+              </div>
               <button
-                className="nav-item mt-5"
+                className="nav-item"
                 onClick={() => setModal("help")}
               >
-                <CircleHelp size={18} />
+                <CircleHelp size={17} strokeWidth={1.7} />
                 Help & getting started
               </button>
               <button className="nav-item" onClick={() => setModal("settings")}>
-                <Settings size={18} />
+                <Settings size={17} strokeWidth={1.7} />
                 Settings
               </button>
-              <div className="mt-5 border-t border-line pt-5 flex items-center gap-3 px-2">
+              <div className="mt-4 border-t border-line pt-4 flex items-center gap-3 px-2">
                 <span className="avatar">
                   {profile.name
                     .split(" ")
@@ -345,19 +372,19 @@ export default function App({
                     .join("")}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <strong className="block truncate text-xs">
+                  <strong className="block truncate text-xs font-semibold text-ink">
                     {profile.name}
                   </strong>
-                  <span className="text-[13px] text-muted">
+                  <span className="text-[11.5px] text-muted">
                     {isNgo ? "Community partner" : "Kindness champion"}
                   </span>
                 </div>
                 <button
                   title="Switch account"
-                  className="text-muted"
+                  className="text-muted hover:text-forest transition-colors p-1"
                   onClick={() => setModal("register")}
                 >
-                  <LogOut size={16} />
+                  <LogOut size={15} />
                 </button>
               </div>
             </div>
@@ -433,14 +460,14 @@ export default function App({
               </div>
             </header>
 
-            <main className="mx-auto max-w-[1500px] px-5 py-7 sm:px-9 xl:px-11">
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-7">
+            <main ref={mainRef} className="mx-auto max-w-[1500px] px-5 py-7 sm:px-9 xl:px-11">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
                 <div>
-                  <div className="flex items-center gap-2 text-[14px] text-muted mb-2">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[1.6px] text-sage mb-2 uppercase">
                     <span className="h-1.5 w-1.5 rounded-full bg-sage" />
                     DONOR WORKSPACE
                   </div>
-                  <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-[-1.1px]">
+                  <h1 className="text-[28px] sm:text-[32px] font-semibold tracking-[-1.2px] text-ink">
                     {view === "Overview"
                       ? `Good to see you, ${profile.name.split(" ")[0]}.`
                       : view === "Rewards & impact"
@@ -455,7 +482,7 @@ export default function App({
                                 ? "Find a little of what your community needs."
                                 : "Every donation has a story."}
                   </h1>
-                  <p className="mt-2 text-xs sm:text-[15px] text-muted">
+                  <p className="mt-2 text-[13.5px] text-muted">
                     {view === "Overview"
                       ? "Your donations, from shared to received."
                       : "Small acts add up. Make your next one count."}
@@ -465,7 +492,7 @@ export default function App({
                   className="button-primary"
                   onClick={() => setModal("donate")}
                 >
-                  <Plus size={17} />
+                  <Plus size={16} />
                   Make a donation
                 </button>
               </div>
@@ -695,41 +722,42 @@ export default function App({
                 <section className="grid lg:grid-cols-[1.2fr_1fr] gap-6">
                   <div className="reward-feature">
                     <Award
-                      size={48}
+                      size={44}
                       strokeWidth={1.3}
-                      className="text-[#a28b52]"
+                      className="text-amber"
                     />
-                    <p className="text-xs tracking-widest text-muted mt-7">
-                      YOUR KINDNESS BALANCE
+                    <p className="text-xs tracking-widest text-muted mt-6 font-semibold uppercase">
+                      Your Kindness Balance
                     </p>
-                    <h2 className="text-6xl font-semibold tracking-tight mt-3">
+                    <h2 className="text-6xl font-semibold tracking-tight mt-3 text-ink">
                       {points.toLocaleString()}
-                      <span className="text-base text-muted ml-3">points</span>
+                      <span className="text-base text-muted ml-3 font-normal">points</span>
                     </h2>
-                    <p className="text-sm text-muted mt-4">
+                    <p className="text-sm text-muted mt-3 leading-6">
                       Every verified donation earns 120 points.
                     </p>
-                    <div className="mt-8 bg-white/70 rounded-2xl p-5">
-                      <div className="flex justify-between text-xs">
-                        <span>Next milestone: Heart of Gold</span>
-                        <strong>{Math.min(1500, points)} / 1,500</strong>
+                    <div className="mt-7 bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-amber-lt/50">
+                      <div className="flex justify-between text-xs font-medium mb-1">
+                        <span className="text-muted">Next milestone: Heart of Gold</span>
+                        <strong className="text-ink">{Math.min(1500, points).toLocaleString()} / 1,500</strong>
                       </div>
-                      <div className="h-2 mt-4 rounded-full bg-[#e7dfc8]">
+                      <div className="h-2 mt-3 rounded-full bg-amber-lt/60 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-[#ad945b]"
+                          className="h-full rounded-full transition-all duration-1000 ease-out"
                           style={{
                             width: `${Math.min(100, (points / 1500) * 100)}%`,
+                            background: "linear-gradient(to right, #C67B30, #E09A55)",
                           }}
                         />
                       </div>
                     </div>
-                    <div className="flex gap-3 mt-7 flex-wrap">
+                    <div className="flex gap-3 mt-6 flex-wrap">
                       <button
                         className="button-primary"
                         disabled={!delivered.length}
                         onClick={downloadCertificate}
                       >
-                        <Download size={16} />
+                        <Download size={15} />
                         Download certificate
                       </button>
                       <button
@@ -749,7 +777,7 @@ export default function App({
                         <ArrowRight size={14} />
                       </button>
                     </div>
-                    <p className="text-[13px] text-muted mt-4">
+                    <p className="text-[12px] text-muted mt-4 leading-5">
                       Demo totals include sample activity. Certificates reflect
                       verified donations here.
                     </p>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { animate, stagger } from "motion";
 import {
   ArrowDown,
   ArrowRight,
@@ -26,7 +27,7 @@ const possibilities = [
     icon: Shirt,
     image:
       "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=85",
-    destination: "Someone’s winter essential.",
+    destination: "Someone's winter essential.",
   },
   {
     name: "A loved book",
@@ -43,7 +44,10 @@ export default function LandingPage({ onEnter }) {
   const [step, setStep] = useState(0);
   const page = useRef(null);
   const item = possibilities[active];
+  const headerRef = useRef(null);
+  const statsRef = useRef(null);
 
+  // Scroll-triggered reveal using native IntersectionObserver
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -54,7 +58,7 @@ export default function LandingPage({ onEnter }) {
           }
         });
       },
-      { threshold: 0.15 },
+      { threshold: 0.12 },
     );
     page.current
       ?.querySelectorAll(".reveal-on-scroll")
@@ -62,18 +66,29 @@ export default function LandingPage({ onEnter }) {
     return () => observer.disconnect();
   }, []);
 
+  // Stagger header nav links on mount with motion
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const links = headerRef.current.querySelectorAll(".landing-links a, .landing-login");
+    animate(
+      links,
+      { opacity: [0, 1], y: [-10, 0] },
+      { duration: 0.5, delay: stagger(0.1, { start: 0.4 }), easing: [0.16, 1, 0.3, 1] },
+    );
+  }, []);
+
   return (
     <div className="landing-page" ref={page}>
-      <header className="landing-header">
+      <header className="landing-header" ref={headerRef}>
         <a href="#" aria-label="KindRoute home">
           <Brand />
         </a>
         <nav className="landing-links" aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#the-good-circle">The good circle</a>
+          <a href="#how-it-works" style={{ opacity: 0 }}>How it works</a>
+          <a href="#the-good-circle" style={{ opacity: 0 }}>The good circle</a>
         </nav>
-        <button className="landing-login" onClick={() => onEnter()}>
-          Go to dashboard <ArrowUpRight size={17} />
+        <button className="landing-login" onClick={() => onEnter()} style={{ opacity: 0 }}>
+          Go to dashboard <ArrowUpRight size={16} />
         </button>
       </header>
 
@@ -100,9 +115,9 @@ export default function LandingPage({ onEnter }) {
               </span>
             </h1>
             <p className="landing-intro">
-              Your extras. Someone’s essentials.
+              Your extras. Someone's essentials.
               <br />
-              Let’s help them find each other.
+              Let's help them find each other.
             </p>
             <div className="landing-hero-actions">
               <button
@@ -136,7 +151,7 @@ export default function LandingPage({ onEnter }) {
               aria-hidden="true"
             >
               <path d="M75 410 C-25 255 178 68 385 110 C560 145 615 350 478 488 C405 565 263 531 259 425" />
-              <circle r="6" fill="#2d5e44">
+              <circle r="6" fill="#4F7C5E">
                 <animateMotion
                   dur="12s"
                   repeatCount="indefinite"
@@ -182,7 +197,7 @@ export default function LandingPage({ onEnter }) {
                   onClick={() => setActive(index)}
                   aria-pressed={active === index}
                 >
-                  <option.icon size={16} />
+                  <option.icon size={15} />
                   {option.category}
                 </button>
               ))}
@@ -190,7 +205,7 @@ export default function LandingPage({ onEnter }) {
           </div>
           <a href="#how-it-works" className="landing-scroll">
             <span>GOOD STARTS HERE</span>
-            <ArrowDown size={16} />
+            <ArrowDown size={15} />
           </a>
         </section>
 
@@ -240,7 +255,7 @@ export default function LandingPage({ onEnter }) {
                 [
                   "01",
                   "You share.",
-                  "List what you have. We’ll help it find a purpose.",
+                  "List what you have. We'll help it find a purpose.",
                 ],
                 [
                   "02",
@@ -354,7 +369,7 @@ export default function LandingPage({ onEnter }) {
             <p>
               Share what you can. Find what you need.
               <br />
-              There’s a place for everyone in this circle.
+              There's a place for everyone in this circle.
             </p>
             <button
               className="landing-primary landing-primary-light"
@@ -372,7 +387,7 @@ export default function LandingPage({ onEnter }) {
         <section className="landing-final reveal-on-scroll">
           <span>LESS WASTE. MORE HEART.</span>
           <h2>
-            Let’s put your extra
+            Let's put your extra
             <br />
             <span className="serif-italic">to extraordinary use.</span>
           </h2>
