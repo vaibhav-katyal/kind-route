@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -6,6 +7,27 @@ import {
   Truck,
 } from "lucide-react";
 import Badge from "./Badge";
+
+function AnimatedCount({ value, duration = 1000 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const start = performance.now();
+    const startVal = 0;
+    const endVal = value;
+    const tick = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(startVal + (endVal - startVal) * eased);
+      if (ref.current) ref.current.textContent = current;
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [value, duration]);
+  return <span ref={ref}>{value}</span>;
+}
 
 export default function DonorOverview({
   donations,
@@ -23,32 +45,34 @@ export default function DonorOverview({
       <section className="donor-summary-line" aria-label="Donation summary">
         <div>
           <span>Donations shared</span>
-          <strong>{donations.length}</strong>
+          <strong><AnimatedCount value={donations.length} /></strong>
         </div>
         <div>
           <span>In progress</span>
-          <strong>{active.length}</strong>
+          <strong><AnimatedCount value={active.length} duration={700} /></strong>
         </div>
         <div>
           <span>Delivered</span>
-          <strong>{delivered.length}</strong>
+          <strong><AnimatedCount value={delivered.length} duration={900} /></strong>
         </div>
       </section>
 
       {pickup && (
         <section className="donor-pickup-notice" aria-label="Next pickup">
           <span className="donor-pickup-icon">
-            <Truck size={23} />
+            <Truck size={22} />
           </span>
           <div>
             <span className="donor-notice-label">NEXT PICKUP</span>
-            <h2>{pickup.title}</h2>
-            <p>
-              {pickup.ngo} <span>·</span> {pickup.date}
+            <h2 style={{ fontSize: "15px", fontWeight: 600, marginTop: "4px", letterSpacing: "-0.2px" }}>
+              {pickup.title}
+            </h2>
+            <p style={{ fontSize: "13px", marginTop: "4px", color: "#6B7A70" }}>
+              {pickup.ngo} <span style={{ padding: "0 5px", opacity: 0.5 }}>·</span> {pickup.date}
             </p>
           </div>
-          <button className="button-outline" onClick={() => onTrack(pickup)}>
-            Track pickup <ArrowUpRight size={16} />
+          <button className="button-outline" onClick={() => onTrack(pickup)} style={{ marginLeft: "auto", flexShrink: 0 }}>
+            Track pickup <ArrowUpRight size={15} />
           </button>
         </section>
       )}
@@ -58,7 +82,7 @@ export default function DonorOverview({
           <h2>Your recent donations</h2>
           {donations.length > 0 && (
             <button onClick={onViewAll}>
-              View all <ArrowRight size={15} />
+              View all <ArrowRight size={14} />
             </button>
           )}
         </div>
@@ -89,14 +113,14 @@ export default function DonorOverview({
                   }
                 >
                   {item.status === "Pickup scheduled" ? "Track" : "Details"}
-                  <ArrowUpRight size={15} />
+                  <ArrowUpRight size={13} />
                 </button>
               </article>
             ))}
           </div>
         ) : (
           <div className="donor-first-donation">
-            <HeartHandshake size={35} />
+            <HeartHandshake size={36} />
             <h3>A little extra can mean a lot.</h3>
             <p>Your first donation will show up here.</p>
             <button className="button-outline" onClick={onDonate}>
@@ -107,7 +131,7 @@ export default function DonorOverview({
       </section>
 
       <p className="donor-overview-footnote">
-        <Package size={14} />
+        <Package size={13} />
         Add an item. An NGO reserves it. You follow the pickup.
       </p>
     </div>
