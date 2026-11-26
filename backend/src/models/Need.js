@@ -32,10 +32,23 @@ const needSchema = new mongoose.Schema(
       type: String,
       default: "orange",
     },
+    location: {
+      type: String,
+      default: "Noida, Uttar Pradesh",
+    },
+    coordinates: {
+      type: [Number],
+      default: [28.627, 77.371],
+    },
     ngoUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: false,
+    },
+    status: {
+      type: String,
+      enum: ["active", "fulfilled"],
+      default: "active",
     },
   },
   {

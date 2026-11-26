@@ -13,7 +13,14 @@ import statsRoutes from "./routes/statsRoutes.js";
 import dns from 'dns';
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
-// Load environment variables from .env
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables reliably from backend/.env or cwd .env
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config();
 
 // Initialize express app

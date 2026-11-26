@@ -10,13 +10,45 @@ const imageCategoryFallbacks = {
   Essentials: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=700&q=85",
 };
 
-// @desc    Get all donations (with optional filters)
+// Helper to format donation output
+const formatDoc = (doc) => ({
+  _id: doc._id,
+  id: doc.donationCode || `KR-${doc._id.toString().slice(-4)}`,
+  donationCode: doc.donationCode,
+  title: doc.title,
+  category: doc.category,
+  quantity: doc.quantity,
+  location: doc.location,
+  distance: doc.distance || "Nearby",
+  ngo: doc.ngo || "",
+  ngoLocation: doc.ngoLocation || "",
+  ngoCoordinates:
+    doc.ngoCoordinates && doc.ngoCoordinates.length === 2
+      ? doc.ngoCoordinates
+      : [28.632, 77.375],
+  status: doc.status,
+  date: doc.date,
+  image: doc.image,
+  description: doc.description,
+  coordinates:
+    doc.coordinates && doc.coordinates.length === 2
+      ? doc.coordinates
+      : [28.627, 77.371],
+  owner: doc.owner,
+  donor: doc.donor,
+  requests: doc.requests || [],
+  reservedAt: doc.reservedAt,
+  startedDeliveryAt: doc.startedDeliveryAt,
+  deliveredAt: doc.deliveredAt,
+  thanksNote: doc.thanksNote || "",
+  createdAt: doc.createdAt,
+});
+
+// @desc    Get all donations
 // @route   GET /api/donations
-// @access  Public
 export const getAllDonations = async (req, res) => {
   try {
     const { category, status, search, owner, ngo } = req.query;
-
     const query = {};
 
     if (category && category !== "All items") {
@@ -46,32 +78,10 @@ export const getAllDonations = async (req, res) => {
 
     const donations = await Donation.find(query).sort({ createdAt: -1 });
 
-    // Format output matching kindroute's UI fields (id = donationCode or _id)
-    const formatted = donations.map((doc) => ({
-      _id: doc._id,
-      id: doc.donationCode || `KR-${doc._id.toString().slice(-4)}`,
-      title: doc.title,
-      category: doc.category,
-      quantity: doc.quantity,
-      location: doc.location,
-      distance: doc.distance || "Nearby",
-      ngo: doc.ngo || "",
-      status: doc.status,
-      date: doc.date,
-      image: doc.image,
-      description: doc.description,
-      coordinates: doc.coordinates && doc.coordinates.length === 2 ? doc.coordinates : [28.627, 77.371],
-      owner: doc.owner,
-      donor: doc.donor,
-      reservedAt: doc.reservedAt,
-      deliveredAt: doc.deliveredAt,
-      createdAt: doc.createdAt,
-    }));
-
     return res.status(200).json({
       success: true,
-      count: formatted.length,
-      donations: formatted,
+      count: donations.length,
+      donations: donations.map(formatDoc),
     });
   } catch (error) {
     return res.status(500).json({
@@ -82,19 +92,17 @@ export const getAllDonations = async (req, res) => {
   }
 };
 
-// @desc    Get single donation by ID or donationCode
+// @desc    Get single donation by ID
 // @route   GET /api/donations/:id
-// @access  Public
 export const getDonationById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    let donation;
-    if (id.startsWith("KR-")) {
-      donation = await Donation.findOne({ donationCode: id });
-    } else {
-      donation = await Donation.findById(id);
-    }
+    const donation = await Donation.findOne({
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
+    });
 
     if (!donation) {
       return res.status(404).json({
@@ -105,25 +113,7 @@ export const getDonationById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      donation: {
-        _id: donation._id,
-        id: donation.donationCode,
-        title: donation.title,
-        category: donation.category,
-        quantity: donation.quantity,
-        location: donation.location,
-        distance: donation.distance,
-        ngo: donation.ngo,
-        status: donation.status,
-        date: donation.date,
-        image: donation.image,
-        description: donation.description,
-        coordinates: donation.coordinates,
-        owner: donation.owner,
-        donor: donation.donor,
-        reservedAt: donation.reservedAt,
-        deliveredAt: donation.deliveredAt,
-      },
+      donation: formatDoc(donation),
     });
   } catch (error) {
     return res.status(500).json({
@@ -136,7 +126,6 @@ export const getDonationById = async (req, res) => {
 
 // @desc    Create / Post a new donation
 // @route   POST /api/donations
-// @access  Public / Private (supports both authenticated donor and guest/demo)
 export const createDonation = async (req, res) => {
   try {
     const {
@@ -148,6 +137,10 @@ export const createDonation = async (req, res) => {
       image,
       coordinates,
       date,
+      // If fulfilling an existing NGO request/need directly
+      targetNgo,
+      targetNgoLocation,
+      targetNgoCoordinates,
     } = req.body;
 
     if (!title || !quantity || !location) {
@@ -158,9 +151,8 @@ export const createDonation = async (req, res) => {
     }
 
     const donorUser = req.user || null;
-    const ownerName = donorUser ? donorUser.name : (req.body.owner || "Anonymous Donor");
+    const ownerName = donorUser ? donorUser.name : (req.body.owner || "Kindness Donor");
 
-    // Pick image fallback according to category if not provided
     const selectedImage =
       image ||
       imageCategoryFallbacks[category] ||
@@ -177,7 +169,7 @@ export const createDonation = async (req, res) => {
 
     const donationCode = `KR-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const donation = await Donation.create({
+    const donationData = {
       donationCode,
       title: title.trim(),
       category,
@@ -186,34 +178,32 @@ export const createDonation = async (req, res) => {
       distance: "Nearby",
       description: description.trim(),
       date: formattedDate,
-      status: "Available",
-      ngo: "",
+      status: targetNgo ? "Approved" : "Available",
       image: selectedImage,
-      coordinates: coordinates && coordinates.length === 2 ? coordinates : [28.627, 77.371],
+      coordinates:
+        coordinates && coordinates.length === 2
+          ? coordinates
+          : [28.627, 77.371],
       donor: donorUser ? donorUser._id : null,
       owner: ownerName,
-    });
+      requests: [],
+    };
+
+    if (targetNgo) {
+      donationData.ngo = targetNgo;
+      donationData.ngoLocation = targetNgoLocation || "Noida, Uttar Pradesh";
+      donationData.ngoCoordinates = targetNgoCoordinates || [28.632, 77.375];
+      donationData.reservedAt = new Date();
+    }
+
+    const donation = await Donation.create(donationData);
 
     return res.status(201).json({
       success: true,
-      message: "Donation created successfully! A little kindness is on its way.",
-      donation: {
-        _id: donation._id,
-        id: donation.donationCode,
-        title: donation.title,
-        category: donation.category,
-        quantity: donation.quantity,
-        location: donation.location,
-        distance: donation.distance,
-        ngo: donation.ngo,
-        status: donation.status,
-        date: donation.date,
-        image: donation.image,
-        description: donation.description,
-        coordinates: donation.coordinates,
-        owner: donation.owner,
-        donor: donation.donor,
-      },
+      message: targetNgo
+        ? `Donation scheduled with ${targetNgo}!`
+        : "Donation posted! Visible to all verified NGOs for requests.",
+      donation: formatDoc(donation),
     });
   } catch (error) {
     return res.status(500).json({
@@ -224,16 +214,26 @@ export const createDonation = async (req, res) => {
   }
 };
 
-// @desc    Reserve / Receive donation by an NGO
-// @route   POST /api/donations/:id/reserve
-// @access  Public / Private (works with NGO user or specified ngoName)
-export const reserveDonation = async (req, res) => {
+// @desc    NGO requests a donation
+// @route   POST /api/donations/:id/request
+export const requestDonation = async (req, res) => {
   try {
     const { id } = req.params;
-    const ngoName = req.user ? req.user.name : (req.body.ngoName || "Robin Hood Army");
+    const { ngoName, ngoLocation, ngoCoordinates, phone, message } = req.body;
 
-    let donation = await Donation.findOne({
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { donationCode: id }],
+    const actualNgoName = req.user?.name || ngoName;
+    if (!actualNgoName) {
+      return res.status(400).json({
+        success: false,
+        message: "NGO name is required to request a donation.",
+      });
+    }
+
+    const donation = await Donation.findOne({
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
     });
 
     if (!donation) {
@@ -243,59 +243,240 @@ export const reserveDonation = async (req, res) => {
       });
     }
 
-    if (donation.status !== "Available") {
+    if (donation.status !== "Available" && donation.status !== "Requested") {
       return res.status(400).json({
         success: false,
         message: `This donation is already ${donation.status.toLowerCase()}.`,
       });
     }
 
-    donation.status = "Pickup scheduled";
-    donation.ngo = ngoName;
-    donation.ngoUser = req.user ? req.user._id : null;
+    // Check if this NGO has already requested
+    const alreadyRequested = donation.requests?.some(
+      (r) => r.ngoName.toLowerCase() === actualNgoName.toLowerCase()
+    );
+
+    if (alreadyRequested) {
+      return res.status(400).json({
+        success: false,
+        message: "Your organization has already submitted a request for this donation.",
+      });
+    }
+
+    const newRequest = {
+      ngoUser: req.user?._id || null,
+      ngoName: actualNgoName,
+      ngoLocation: ngoLocation || req.user?.location || "Noida, Uttar Pradesh",
+      ngoCoordinates:
+        ngoCoordinates && ngoCoordinates.length === 2
+          ? ngoCoordinates
+          : [28.635, 77.38],
+      phone: phone || req.user?.phone || "",
+      message: message || "We can collect this donation for our community beneficiaries.",
+      requestedAt: new Date(),
+      status: "pending",
+    };
+
+    donation.requests.push(newRequest);
+    donation.status = "Requested";
+    await donation.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Request submitted to ${donation.owner}! Waiting for donor approval.`,
+      donation: formatDoc(donation),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error requesting donation.",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Donor approves an NGO's request
+// @route   POST /api/donations/:id/approve
+export const approveDonationRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { requestId, ngoName } = req.body;
+
+    const donation = await Donation.findOne({
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
+    });
+
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: "Donation not found.",
+      });
+    }
+
+    // Find the request to approve
+    let selectedRequest = null;
+    if (requestId) {
+      selectedRequest = donation.requests.id(requestId);
+    } else if (ngoName) {
+      selectedRequest = donation.requests.find(
+        (r) => r.ngoName.toLowerCase() === ngoName.toLowerCase()
+      );
+    }
+
+    if (!selectedRequest && donation.requests.length > 0) {
+      selectedRequest = donation.requests[0];
+    }
+
+    if (!selectedRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid NGO request found to approve.",
+      });
+    }
+
+    // Mark approved request and reject others
+    donation.requests.forEach((reqItem) => {
+      if (reqItem._id.toString() === selectedRequest._id.toString()) {
+        reqItem.status = "approved";
+      } else {
+        reqItem.status = "rejected";
+      }
+    });
+
+    donation.ngo = selectedRequest.ngoName;
+    donation.ngoUser = selectedRequest.ngoUser || null;
+    donation.ngoLocation = selectedRequest.ngoLocation || "Noida, Uttar Pradesh";
+    donation.ngoCoordinates = selectedRequest.ngoCoordinates || [28.635, 77.38];
+    donation.status = "Approved";
     donation.reservedAt = new Date();
 
     await donation.save();
 
     return res.status(200).json({
       success: true,
-      message: `Donation reserved by ${ngoName}. Your pickup is ready to coordinate.`,
-      donation: {
-        _id: donation._id,
-        id: donation.donationCode,
-        title: donation.title,
-        category: donation.category,
-        quantity: donation.quantity,
-        location: donation.location,
-        distance: donation.distance,
-        ngo: donation.ngo,
-        status: donation.status,
-        date: donation.date,
-        image: donation.image,
-        description: donation.description,
-        coordinates: donation.coordinates,
-        owner: donation.owner,
-        reservedAt: donation.reservedAt,
-      },
+      message: `Request from ${selectedRequest.ngoName} approved! You can now start delivery.`,
+      donation: formatDoc(donation),
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Server error reserving donation.",
+      message: "Server error approving request.",
       error: error.message,
     });
   }
 };
 
-// @desc    Release / Cancel reservation (make available again)
+// @desc    Donor or NGO starts delivery (triggers real map route)
+// @route   POST /api/donations/:id/start-delivery
+export const startDelivery = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const donation = await Donation.findOne({
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
+    });
+
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: "Donation not found.",
+      });
+    }
+
+    if (donation.status !== "Approved" && donation.status !== "Pickup scheduled") {
+      return res.status(400).json({
+        success: false,
+        message: "Only approved donations can be started for delivery.",
+      });
+    }
+
+    donation.status = "In transit";
+    donation.startedDeliveryAt = new Date();
+    await donation.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Delivery started! The real route between donor and NGO is now active.",
+      donation: formatDoc(donation),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error starting delivery.",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    NGO acknowledges receipt and writes a thanks note
+// @route   POST /api/donations/:id/acknowledge
+export const acknowledgeReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { thanksNote } = req.body;
+
+    const donation = await Donation.findOne({
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
+    });
+
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: "Donation not found.",
+      });
+    }
+
+    donation.status = "Delivered";
+    donation.thanksNote =
+      thanksNote?.trim() ||
+      "Thank you so much for your generosity! Your donation has reached our community members and made a genuine difference.";
+    donation.deliveredAt = new Date();
+    await donation.save();
+
+    // Reward +120 kindness points to the donor
+    if (donation.donor) {
+      await User.findByIdAndUpdate(donation.donor, {
+        $inc: { points: 120 },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Receipt acknowledged! Thanks note delivered and 120 points awarded to the donor.",
+      donation: formatDoc(donation),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error acknowledging receipt.",
+      error: error.message,
+    });
+  }
+};
+
+// Backward-compatible endpoints
+export const reserveDonation = requestDonation;
+export const completeDonation = acknowledgeReceipt;
+
+// @desc    Release / Cancel reservation
 // @route   POST /api/donations/:id/release
-// @access  Public / Private
 export const releaseDonation = async (req, res) => {
   try {
     const { id } = req.params;
 
-    let donation = await Donation.findOne({
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { donationCode: id }],
+    const donation = await Donation.findOne({
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
     });
 
     if (!donation) {
@@ -308,73 +489,21 @@ export const releaseDonation = async (req, res) => {
     donation.status = "Available";
     donation.ngo = "";
     donation.ngoUser = null;
+    donation.ngoLocation = "";
     donation.reservedAt = null;
+    donation.startedDeliveryAt = null;
 
     await donation.save();
 
     return res.status(200).json({
       success: true,
-      message: "Reservation released. Donation is now available again for other NGOs.",
-      donation: {
-        _id: donation._id,
-        id: donation.donationCode,
-        status: donation.status,
-        ngo: donation.ngo,
-      },
+      message: "Donation is now available for new requests.",
+      donation: formatDoc(donation),
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Server error releasing reservation.",
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Complete / Confirm delivery of donation
-// @route   POST /api/donations/:id/complete
-// @access  Public / Private
-export const completeDonation = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    let donation = await Donation.findOne({
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { donationCode: id }],
-    });
-
-    if (!donation) {
-      return res.status(404).json({
-        success: false,
-        message: "Donation not found.",
-      });
-    }
-
-    donation.status = "Delivered";
-    donation.deliveredAt = new Date();
-    await donation.save();
-
-    // Reward points to donor if linked to an account
-    if (donation.donor) {
-      await User.findByIdAndUpdate(donation.donor, {
-        $inc: { points: 120 },
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Delivery confirmed and recorded! 120 kindness points awarded.",
-      donation: {
-        _id: donation._id,
-        id: donation.donationCode,
-        title: donation.title,
-        status: donation.status,
-        deliveredAt: donation.deliveredAt,
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Server error completing delivery.",
+      message: "Server error releasing donation.",
       error: error.message,
     });
   }
@@ -382,13 +511,15 @@ export const completeDonation = async (req, res) => {
 
 // @desc    Delete a donation
 // @route   DELETE /api/donations/:id
-// @access  Public / Private
 export const deleteDonation = async (req, res) => {
   try {
     const { id } = req.params;
 
     const donation = await Donation.findOneAndDelete({
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { donationCode: id }],
+      $or: [
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+        { donationCode: id },
+      ],
     });
 
     if (!donation) {

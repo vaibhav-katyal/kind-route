@@ -17,7 +17,7 @@ export const initialDonations = [
     location: "Sector 62, Noida",
     distance: "1.2 km",
     ngo: "Robin Hood Army",
-    status: "Pickup scheduled",
+    status: "Available",
     date: "Today, 4:30 PM",
     image:
       "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=700&q=85",
@@ -25,6 +25,7 @@ export const initialDonations = [
       "Freshly prepared vegetarian rice, dal and vegetables. Packed in individual boxes.",
     coordinates: [28.627, 77.371],
     owner: "Community donor",
+    requests: [],
   },
   {
     id: "KR-1041",
@@ -42,6 +43,7 @@ export const initialDonations = [
       "Clean sweaters and jackets, in good condition. Mixed adult sizes.",
     coordinates: [28.642, 77.369],
     owner: "Community donor",
+    requests: [],
   },
   {
     id: "KR-1040",
@@ -51,7 +53,7 @@ export const initialDonations = [
     location: "Sector 50, Noida",
     distance: "3.5 km",
     ngo: "Uday Foundation",
-    status: "Delivered",
+    status: "Available",
     date: "Yesterday",
     image:
       "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=700&q=85",
@@ -59,6 +61,7 @@ export const initialDonations = [
       "Children’s storybooks and unused notebooks for school students.",
     coordinates: [28.57, 77.363],
     owner: "Community donor",
+    requests: [],
   },
   {
     id: "KR-1039",
@@ -75,33 +78,9 @@ export const initialDonations = [
     description:
       "Two working desk lamps with LED bulbs, ideal for a learning centre.",
     coordinates: [28.571, 77.326],
-    owner: "community",
+    owner: "Priya Sharma",
+    requests: [],
   },
 ];
 
-export const needs = [
-  {
-    name: "Robin Hood Army",
-    category: "Food",
-    title: "A warm meal. A better evening.",
-    detail: "Help us serve 50 people in Sector 62.",
-    amount: "50 meals needed",
-    color: "orange",
-  },
-  {
-    name: "Goonj Foundation",
-    category: "Clothing",
-    title: "Make someone’s winter warmer.",
-    detail: "Winter clothes for families in Noida.",
-    amount: "30 items needed",
-    color: "purple",
-  },
-  {
-    name: "Uday Foundation",
-    category: "Books",
-    title: "Give a story a second home.",
-    detail: "Books and stationery for young minds.",
-    amount: "40 books needed",
-    color: "blue",
-  },
-];
+export const needs = [];

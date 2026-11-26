@@ -716,3 +716,136 @@
     margin-left: 0;
   }
 }
+
+/* NGO Requirements Cards */
+.ngo-need-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.ngo-need-card {
+  background: #fff;
+  border: 1px solid #e2e7dc;
+  border-radius: 10px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.25s, border-color 0.25s;
+}
+.ngo-need-card:hover {
+  border-color: #b9caa8;
+  box-shadow: 0 8px 24px #354b2810;
+}
+.ngo-need-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ngo-need-category {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3d6332;
+  background: #eaf0e1;
+  padding: 4px 9px;
+  border-radius: 5px;
+}
+.ngo-need-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: #273c30;
+}
+.ngo-need-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #233b2c;
+  line-height: 1.4;
+  margin: 0;
+}
+.ngo-need-card p {
+  font-size: 13px;
+  color: #798770;
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+}
+.ngo-need-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #edf0e6;
+  padding-top: 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #88947f;
+}
+.ngo-need-location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ngo-need-delete {
+  background: none;
+  border: none;
+  color: #b56c6c;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.ngo-need-delete:hover {
+  background: #fdf2f2;
+  color: #9c2727;
+}
+
+/* Thanks Note Box */
+.ngo-thanks-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f3f8ee;
+  border: 1px solid #dce8d0;
+  border-radius: 7px;
+  font-size: 12px;
+  color: #375338;
+}
+.ngo-thanks-box strong {
+  display: block;
+  font-size: 11px;
+  color: #5c7850;
+  margin-bottom: 2px;
+}
+.ngo-thanks-box p {
+  font-style: italic;
+  color: #4b664d;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Request Pending Badge */
+.ngo-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #925e14;
+  background: #fef7ec;
+  border: 1px solid #fae1b9;
+  padding: 4px 8px;
+  border-radius: 5px;
+}
+
+@media (max-width: 1250px) {
+  .ngo-need-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .ngo-need-grid {
+    grid-template-columns: 1fr;
+  }
+}

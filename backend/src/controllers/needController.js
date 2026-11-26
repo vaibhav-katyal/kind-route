@@ -32,28 +32,45 @@ export const getNeeds = async (req, res) => {
 // @access  Public / Private
 export const createNeed = async (req, res) => {
   try {
-    const { name, category, title, detail, amount, color = "orange" } = req.body;
+    const {
+      name,
+      category,
+      title,
+      detail,
+      amount,
+      color = "orange",
+      location,
+      coordinates,
+    } = req.body;
 
-    if (!name || !title || !detail || !amount) {
+    const ngoName = req.user?.name || name;
+
+    if (!ngoName || !title || !detail || !amount) {
       return res.status(400).json({
         success: false,
-        message: "Organization name, title, detail, and amount are required.",
+        message: "Organization name, title, detail, and quantity needed are required.",
       });
     }
 
     const need = await Need.create({
-      name: name.trim(),
+      name: ngoName.trim(),
       category: category || "Food",
       title: title.trim(),
       detail: detail.trim(),
       amount: amount.trim(),
       color,
+      location: location || req.user?.location || "Noida, Uttar Pradesh",
+      coordinates:
+        coordinates && coordinates.length === 2
+          ? coordinates
+          : [28.627, 77.371],
       ngoUser: req.user ? req.user._id : null,
+      status: "active",
     });
 
     return res.status(201).json({
       success: true,
-      message: "Need requirement posted successfully.",
+      message: "Need requirement posted successfully to the community network.",
       need,
     });
   } catch (error) {

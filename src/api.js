@@ -96,6 +96,33 @@ export const api = {
       body: JSON.stringify(donationData),
     }),
 
+  // NGO requests donation
+  requestDonation: (id, requestData) =>
+    apiRequest(`/donations/${id}/request`, {
+      method: "POST",
+      body: JSON.stringify(requestData),
+    }),
+
+  // Donor approves NGO request
+  approveDonationRequest: (id, approvalData) =>
+    apiRequest(`/donations/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify(approvalData),
+    }),
+
+  // Start real delivery / dispatch
+  startDelivery: (id) =>
+    apiRequest(`/donations/${id}/start-delivery`, {
+      method: "POST",
+    }),
+
+  // NGO acknowledges receipt and submits thanks note
+  acknowledgeReceipt: (id, acknowledgmentData) =>
+    apiRequest(`/donations/${id}/acknowledge`, {
+      method: "POST",
+      body: JSON.stringify(acknowledgmentData),
+    }),
+
   reserveDonation: (id, ngoName) =>
     apiRequest(`/donations/${id}/reserve`, {
       method: "POST",

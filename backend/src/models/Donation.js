@@ -1,5 +1,45 @@
 import mongoose from "mongoose";
 
+const requestSubSchema = new mongoose.Schema(
+  {
+    ngoUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false,
+    },
+    ngoName: {
+      type: String,
+      required: true,
+    },
+    ngoLocation: {
+      type: String,
+      default: "",
+    },
+    ngoCoordinates: {
+      type: [Number],
+      default: [28.627, 77.371],
+    },
+    phone: {
+      type: String,
+      default: "",
+    },
+    message: {
+      type: String,
+      default: "",
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+  },
+  { _id: true }
+);
+
 const donationSchema = new mongoose.Schema(
   {
     donationCode: {
@@ -58,7 +98,15 @@ const donationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Available", "Pickup scheduled", "Delivered", "Cancelled"],
+      enum: [
+        "Available",
+        "Requested",
+        "Approved",
+        "Pickup scheduled",
+        "In transit",
+        "Delivered",
+        "Cancelled",
+      ],
       default: "Available",
     },
     image: {
@@ -80,7 +128,10 @@ const donationSchema = new mongoose.Schema(
       type: String,
       required: [true, "Owner name is required"],
     },
-    // Reference to NGO that claimed/reserved the pickup
+    // List of requests made by NGOs
+    requests: [requestSubSchema],
+
+    // Selected NGO details
     ngoUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -90,11 +141,27 @@ const donationSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    ngoLocation: {
+      type: String,
+      default: "",
+    },
+    ngoCoordinates: {
+      type: [Number],
+      default: [28.627, 77.371],
+    },
     reservedAt: {
+      type: Date,
+    },
+    startedDeliveryAt: {
       type: Date,
     },
     deliveredAt: {
       type: Date,
+    },
+    // NGO's personalized gratitude note upon receipt
+    thanksNote: {
+      type: String,
+      default: "",
     },
   },
   {
