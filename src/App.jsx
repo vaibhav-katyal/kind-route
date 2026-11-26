@@ -10,14 +10,13 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
-  Database,
   Download,
   Gift,
   Heart,
   HeartHandshake,
-  KeyRound,
   LayoutDashboard,
   Leaf,
+  Loader2,
   LogOut,
   MapPin,
   Menu,
@@ -30,7 +29,7 @@ import {
   Shirt,
   Sprout,
   Truck,
-  UserCheck,
+  User,
   Users,
   Utensils,
   X,
@@ -43,7 +42,8 @@ import PickupMap from "./components/PickupMap";
 import usePersistentState from "./hooks/usePersistentState";
 import NgoDashboard from "./components/NgoDashboard";
 import DonorOverview from "./components/DonorOverview";
-import api, { getToken, setToken, removeToken } from "./api";
+import api from "./api";
+import { getCurrentLocation } from "./utils/location";
 
 const icons = {
   Food: Utensils,
@@ -56,17 +56,8 @@ const icons = {
 const imageFallback =
   "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=700&q=85";
 
-export default function App({
-  initialRole,
-  initialRegistration = false,
-  onHome,
-}) {
-  const [profile, setProfile] = usePersistentState("kindroute-profile", {
-    name: "Alex Morgan",
-    role: "donor",
-    location: "Noida, Uttar Pradesh",
-    demo: true,
-  });
+export default function App({ currentUser, onLogout, onHome }) {
+  const [profile, setProfile] = useState(currentUser);
   const [donations, setDonations] = usePersistentState(
     "kindroute-donations",
     initialDonations,
@@ -74,7 +65,7 @@ export default function App({
   const [view, setView] = useState("Overview");
   const [category, setCategory] = useState("All items");
   const [query, setQuery] = useState("");
-  const [modal, setModal] = useState(initialRegistration ? "register" : null);
+  const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState("");
   const [menu, setMenu] = useState(false);
@@ -83,50 +74,32 @@ export default function App({
   const [simulating, setSimulating] = useState(false);
   const [ngos] = usePersistentState("kindroute-needs", needs);
 
-  // Backend & MongoDB state
-  const [backendStatus, setBackendStatus] = useState("connecting");
-  const [authTab, setAuthTab] = useState(initialRegistration ? "register" : "login");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [loginCreds, setLoginCreds] = useState({ email: "", password: "" });
+  // Location detection states for modal
+  const [donateLocation, setDonateLocation] = useState(currentUser?.location || "");
+  const [donateCoords, setDonateCoords] = useState([28.627, 77.371]);
+  const [locatingDonate, setLocatingDonate] = useState(false);
+  const [donateLocError, setDonateLocError] = useState("");
+
+  const [settingsLocation, setSettingsLocation] = useState(currentUser?.location || "");
+  const [locatingSettings, setLocatingSettings] = useState(false);
+  const [settingsLocError, setSettingsLocError] = useState("");
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfile(currentUser);
+      setDonateLocation(currentUser.location || "");
+      setSettingsLocation(currentUser.location || "");
+    }
+  }, [currentUser]);
 
   const syncBackend = async () => {
     try {
-      const healthy = await api.checkHealth();
-      if (!healthy) {
-        setBackendStatus("offline");
-        return;
+      const donRes = await api.getDonations();
+      if (donRes.success && donRes.donations && donRes.donations.length > 0) {
+        setDonations(donRes.donations);
       }
-      setBackendStatus("connected");
-
-      // Sync authenticated user profile
-      const token = getToken();
-      if (token) {
-        try {
-          const userRes = await api.getMe();
-          if (userRes.success && userRes.user) {
-            setProfile((current) => ({
-              ...current,
-              ...userRes.user,
-              demo: false,
-            }));
-          }
-        } catch {
-          removeToken();
-        }
-      }
-
-      // Fetch live donations from MongoDB
-      try {
-        const donRes = await api.getDonations();
-        if (donRes.success && donRes.donations && donRes.donations.length > 0) {
-          setDonations(donRes.donations);
-        }
-      } catch (err) {
-        console.warn("Donation sync error:", err.message);
-      }
-    } catch {
-      setBackendStatus("offline");
+    } catch (err) {
+      console.warn("Backend sync note:", err.message);
     }
   };
 
@@ -134,38 +107,34 @@ export default function App({
     syncBackend();
   }, []);
 
-  useEffect(() => {
-    if (!initialRole) return;
-    setProfile((current) => ({
-      ...current,
-      role: initialRole,
-      name: current.demo
-        ? initialRole === "ngo"
-          ? "Robin Hood Army"
-          : "Alex Morgan"
-        : current.name,
-    }));
-  }, [initialRole]);
-  const isNgo = profile.role === "ngo";
+  const isNgo = profile?.role === "ngo";
+
+  // Filter donor's own donations
   const donorDonations = donations.filter(
     (item) =>
       item.owner === profile.name ||
-      (profile.demo && item.owner === "demo-donor") ||
-      (profile.demo && item.owner === "Alex Morgan"),
+      (profile.id && item.donor === profile.id) ||
+      (profile._id && item.donor === profile._id),
   );
+
   const delivered = donorDonations.filter(
     (item) => item.status === "Delivered",
   );
-  const points = delivered.length * 120 + (profile.demo ? 1120 : 0);
+
+  // Kindness points: 120 points per verified delivery
+  const points = delivered.length * 120;
   const total = donorDonations.length;
+
   const notify = (message) => {
     setToast(message);
   };
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
   useEffect(() => {
     if (!simulating) return;
     const timer = setInterval(
@@ -181,19 +150,19 @@ export default function App({
     );
     return () => clearInterval(timer);
   }, [simulating]);
+
   const openTrack = (item) => {
     setSelected(item);
     setProgress(0);
     setSimulating(false);
     setModal("tracking");
   };
+
   const reserve = async (item) => {
     try {
-      if (backendStatus === "connected") {
-        await api.reserveDonation(item.id, profile.name);
-      }
+      await api.reserveDonation(item.id, profile.name);
     } catch (err) {
-      console.warn("Reserve error:", err.message);
+      console.warn("Reserve notice:", err.message);
     }
     setDonations((items) =>
       items.map((entry) =>
@@ -205,13 +174,14 @@ export default function App({
     notify("Donation reserved. Your pickup is ready to coordinate.");
     setModal(null);
   };
+
   const completePickup = async () => {
     try {
-      if (backendStatus === "connected" && selected) {
+      if (selected) {
         await api.completeDonation(selected.id);
       }
     } catch (err) {
-      console.warn("Complete pickup error:", err.message);
+      console.warn("Complete pickup notice:", err.message);
     }
     setDonations((items) =>
       items.map((item) =>
@@ -222,16 +192,15 @@ export default function App({
     notify(
       isNgo
         ? "Delivery confirmed. Added to your collection history."
-        : "Delivery verified! 120 kindness points added to the donor.",
+        : "Delivery verified! 120 kindness points added to your account.",
     );
   };
+
   const handleRelease = async (item) => {
     try {
-      if (backendStatus === "connected") {
-        await api.releaseDonation(item.id);
-      }
+      await api.releaseDonation(item.id);
     } catch (err) {
-      console.warn("Release error:", err.message);
+      console.warn("Release notice:", err.message);
     }
     setDonations((items) =>
       items.map((entry) =>
@@ -243,145 +212,15 @@ export default function App({
     notify("Reservation released. The donation is available again.");
   };
 
-  const handleSwitchWorkspace = async (targetRole) => {
-    const nextRole = targetRole || (isNgo ? "donor" : "ngo");
-    try {
-      if (backendStatus === "connected" && getToken()) {
-        const res = await api.switchRole(nextRole);
-        if (res.success && res.user) {
-          setProfile((curr) => ({
-            ...curr,
-            role: res.user.role,
-            name: res.user.name,
-          }));
-        }
-      } else {
-        setProfile((current) => ({
-          ...current,
-          role: nextRole,
-          name: current.demo
-            ? nextRole === "ngo"
-              ? "Robin Hood Army"
-              : "Alex Morgan"
-            : current.name,
-        }));
-      }
-      notify(`Switched to ${nextRole === "ngo" ? "NGO" : "Donor"} workspace.`);
-    } catch {
-      setProfile((current) => ({
-        ...current,
-        role: nextRole,
-      }));
-      notify(`Switched to ${nextRole === "ngo" ? "NGO" : "Donor"} workspace.`);
-    }
-    setView("Overview");
-  };
-
-  async function handleLogin(event) {
-    event.preventDefault();
-    setAuthLoading(true);
-    setAuthError("");
-    const form = new FormData(event.currentTarget);
-    const email = form.get("email");
-    const password = form.get("password");
-
-    try {
-      if (backendStatus !== "connected") {
-        throw new Error(
-          "Backend server is offline. Please run 'npm run backend' to connect with MongoDB.",
-        );
-      }
-      const res = await api.login({ email, password });
-      if (res.success && res.token) {
-        setToken(res.token);
-        setProfile({
-          ...res.user,
-          demo: false,
-        });
-        setModal(null);
-        notify(res.message || `Welcome back, ${res.user.name}!`);
-        syncBackend();
-      } else {
-        setAuthError(res.message || "Failed to log in.");
-      }
-    } catch (err) {
-      setAuthError(err.message || "Invalid email or password.");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleRegister(event) {
-    event.preventDefault();
-    setAuthLoading(true);
-    setAuthError("");
-    const form = new FormData(event.currentTarget);
-    const name = form.get("name").trim();
-    const email = form.get("email").trim();
-    const password = form.get("password");
-    const role = form.get("role") || "donor";
-    const location = form.get("location").trim();
-
-    try {
-      if (backendStatus !== "connected") {
-        setProfile({
-          name,
-          email,
-          role,
-          location,
-          demo: false,
-        });
-        setModal(null);
-        notify("Local profile created. (Start backend server to sync to MongoDB)");
-        return;
-      }
-      const res = await api.register({
-        name,
-        email,
-        password,
-        role,
-        location,
-      });
-      if (res.success && res.token) {
-        setToken(res.token);
-        setProfile({
-          ...res.user,
-          demo: false,
-        });
-        setModal(null);
-        notify(res.message || "Account registered in MongoDB!");
-        syncBackend();
-      } else {
-        setAuthError(res.message || "Failed to create account.");
-      }
-    } catch (err) {
-      setAuthError(err.message || "Failed to create account.");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  function handleLogout() {
-    removeToken();
-    setProfile({
-      name: "Alex Morgan",
-      role: "donor",
-      location: "Noida, Uttar Pradesh",
-      demo: true,
-    });
-    setModal(null);
-    notify("Logged out successfully.");
-  }
+  // Nav Items for Donor Workspace
   const navItems = [
     { name: "Overview", icon: LayoutDashboard },
-    {
-      name: isNgo ? "Explore donations" : "My donations",
-      icon: HeartHandshake,
-    },
+    { name: "My donations", icon: HeartHandshake },
     { name: "Pickup tracking", icon: MapPin },
-    { name: isNgo ? "My requirements" : "NGO community", icon: Users },
+    { name: "NGO community", icon: Users },
     { name: "Rewards & impact", icon: Award },
   ];
+
   const filtered = donorDonations.filter(
     (item) =>
       (category === "All items" || item.category === category) &&
@@ -389,10 +228,12 @@ export default function App({
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
+
   const cards =
     view === "Pickup tracking"
       ? filtered.filter((item) => item.status === "Pickup scheduled")
       : filtered;
+
   const activePickup = donorDonations.find(
     (item) => item.status === "Pickup scheduled",
   );
@@ -404,11 +245,14 @@ export default function App({
     const reference = initialDonations.find(
       (item) => item.category === categoryValue,
     );
+
+    const finalLocation = donateLocation.trim() || profile.location;
+
     const newItem = {
       title: form.get("title").trim(),
       category: categoryValue,
       quantity: form.get("quantity").trim(),
-      location: form.get("location").trim(),
+      location: finalLocation,
       description: form.get("description").trim(),
       date: new Date(form.get("date")).toLocaleString("en-IN", {
         month: "short",
@@ -419,24 +263,16 @@ export default function App({
       status: "Available",
       ngo: "",
       distance: "Nearby",
-      coordinates: [28.627, 77.371],
+      coordinates: donateCoords,
       image: reference?.image || imageFallback,
       owner: profile.name,
     };
 
     try {
-      if (backendStatus === "connected") {
-        const res = await api.createDonation(newItem);
-        if (res.success && res.donation) {
-          setDonations((items) => [res.donation, ...items]);
-          notify("Donation posted to MongoDB! A little kindness is on its way.");
-        } else {
-          setDonations((items) => [
-            { id: `KR-${Date.now().toString().slice(-6)}`, ...newItem },
-            ...items,
-          ]);
-          notify("Your donation is live.");
-        }
+      const res = await api.createDonation(newItem);
+      if (res.success && res.donation) {
+        setDonations((items) => [res.donation, ...items]);
+        notify("Donation posted! A little kindness is on its way.");
       } else {
         setDonations((items) => [
           { id: `KR-${Date.now().toString().slice(-6)}`, ...newItem },
@@ -444,8 +280,7 @@ export default function App({
         ]);
         notify("Your donation is live.");
       }
-    } catch (err) {
-      console.warn("Save donation error:", err.message);
+    } catch {
       setDonations((items) => [
         { id: `KR-${Date.now().toString().slice(-6)}`, ...newItem },
         ...items,
@@ -462,27 +297,33 @@ export default function App({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = form.get("name").trim();
-    const email = form.get("email")?.trim();
-    const role = form.get("role");
-    const location = form.get("location").trim();
+    const phone = form.get("phone")?.trim();
+    const finalLocation = settingsLocation.trim() || profile.location;
 
     try {
-      if (backendStatus === "connected" && getToken()) {
-        const res = await api.updateProfile({ name, location, role });
-        if (res.success && res.user) {
-          setProfile((curr) => ({ ...curr, ...res.user }));
-        }
+      const res = await api.updateProfile({
+        name,
+        phone,
+        location: finalLocation,
+      });
+      if (res.success && res.user) {
+        setProfile((curr) => ({ ...curr, ...res.user }));
       } else {
-        setProfile({
+        setProfile((curr) => ({
+          ...curr,
           name,
-          email,
-          role,
-          location,
-          demo: false,
-        });
+          phone,
+          location: finalLocation,
+        }));
       }
       notify("Profile updated successfully.");
     } catch {
+      setProfile((curr) => ({
+        ...curr,
+        name,
+        phone,
+        location: finalLocation,
+      }));
       notify("Profile updated.");
     }
     setModal(null);
@@ -490,7 +331,7 @@ export default function App({
 
   function downloadCertificate() {
     const safeName = profile.name.replace(/[<>&"']/g, "");
-    const content = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="850"><rect width="1200" height="850" fill="#f8faf5"/><rect x="35" y="35" width="1130" height="780" fill="none" stroke="#2b6046" stroke-width="3"/><g text-anchor="middle" font-family="Georgia" fill="#214d38"><text x="600" y="150" font-size="36">KindRoute</text><text x="600" y="265" font-size="52">Certificate of Kindness</text><text x="600" y="350" font-size="22">Presented with gratitude to</text><text x="600" y="440" font-size="56">${safeName}</text><text x="600" y="525" font-size="24">For ${delivered.length} verified donation${delivered.length === 1 ? "" : "s"} and a generous spirit.</text><text x="600" y="590" font-size="20">A little kindness goes a long way.</text><text x="600" y="720" font-size="18">Browser demo · ${new Date().toLocaleDateString("en-IN")}</text></g></svg>`;
+    const content = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="850"><rect width="1200" height="850" fill="#f8faf5"/><rect x="35" y="35" width="1130" height="780" fill="none" stroke="#2b6046" stroke-width="3"/><g text-anchor="middle" font-family="Georgia" fill="#214d38"><text x="600" y="150" font-size="36">KindRoute</text><text x="600" y="265" font-size="52">Certificate of Kindness</text><text x="600" y="350" font-size="22">Presented with gratitude to</text><text x="600" y="440" font-size="56">${safeName}</text><text x="600" y="525" font-size="24">For ${delivered.length} verified donation${delivered.length === 1 ? "" : "s"} and a generous spirit.</text><text x="600" y="590" font-size="20">A little kindness goes a long way.</text><text x="600" y="720" font-size="18">KindRoute Verified · ${new Date().toLocaleDateString("en-IN")}</text></g></svg>`;
     const url = URL.createObjectURL(
       new Blob([content], { type: "image/svg+xml" }),
     );
@@ -509,14 +350,8 @@ export default function App({
           profile={profile}
           donations={donations}
           onHome={onHome}
-          onAccount={() => {
-            setAuthTab("settings");
-            setModal("register");
-          }}
-          onSettings={() => {
-            setAuthTab("settings");
-            setModal("settings");
-          }}
+          onAccount={() => setModal("settings")}
+          onSettings={() => setModal("settings")}
           onDetails={(item) => {
             setSelected(item);
             setModal("detail");
@@ -535,31 +370,29 @@ export default function App({
           <aside
             className={`sidebar ${menu ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
           >
-            <div className="px-7 pt-9 pb-10">
+            <div className="px-7 pt-9 pb-8">
               <button onClick={onHome} aria-label="Back to KindRoute home">
                 <Brand />
               </button>
             </div>
+
+            {/* Static Donor Profile Badge (No switch workspace) */}
             <div className="px-6">
-              <div
-                className="workspace-switch cursor-pointer hover:bg-forest/5 transition-colors"
-                title="Click to switch workspace"
-                onClick={() => handleSwitchWorkspace()}
-              >
-                <span className="rounded-lg bg-white p-2 text-forest">
-                  <Heart size={17} />
+              <div className="flex items-center gap-3 p-3 bg-forest/5 rounded-xl border border-line">
+                <span className="rounded-lg bg-white p-2 text-forest shadow-xs">
+                  <Heart size={18} />
                 </span>
-                <div className="flex-1">
-                  <strong className="block text-xs font-semibold">
-                    {isNgo ? "NGO workspace" : "Donor workspace"}
+                <div className="flex-1 min-w-0">
+                  <strong className="block text-xs font-semibold truncate text-ink">
+                    {profile.name}
                   </strong>
-                  <span className="text-[13px] text-muted">
-                    Click to switch workspace
+                  <span className="text-[12px] text-muted">
+                    Donor Workspace
                   </span>
                 </div>
-                <ChevronDown size={14} />
               </div>
             </div>
+
             <p className="px-8 mt-8 mb-3 text-[12px] font-semibold tracking-[1.7px] text-muted">
               YOUR WORKSPACE
             </p>
@@ -586,6 +419,7 @@ export default function App({
                 </button>
               ))}
             </nav>
+
             <div className="sidebar-bottom">
               <button
                 className="nav-item mt-5"
@@ -597,12 +431,12 @@ export default function App({
               <button
                 className="nav-item"
                 onClick={() => {
-                  setAuthTab("settings");
+                  setSettingsLocation(profile.location || "");
                   setModal("settings");
                 }}
               >
                 <Settings size={18} />
-                Settings & Switch
+                Account Settings
               </button>
               <div className="mt-5 border-t border-line pt-5 flex items-center gap-3 px-2">
                 <span className="avatar">
@@ -616,17 +450,14 @@ export default function App({
                   <strong className="block truncate text-xs">
                     {profile.name}
                   </strong>
-                  <span className="text-[13px] text-muted">
-                    {isNgo ? "Community partner" : "Kindness champion"}
+                  <span className="text-[13px] text-muted truncate block">
+                    {profile.email || "Active donor"}
                   </span>
                 </div>
                 <button
-                  title={getToken() ? "Settings & Logout" : "Sign In / Register"}
-                  className="text-muted hover:text-ink transition-colors"
-                  onClick={() => {
-                    setAuthTab(getToken() ? "settings" : "login");
-                    setModal("register");
-                  }}
+                  title="Log Out"
+                  className="text-muted hover:text-red-600 transition-colors cursor-pointer"
+                  onClick={onLogout}
                 >
                   <LogOut size={16} />
                 </button>
@@ -650,42 +481,20 @@ export default function App({
                   A little kindness, every day
                 </span>
               </div>
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-4">
                 <button
                   onClick={() => {
-                    setAuthTab(getToken() ? "settings" : "login");
-                    setModal("register");
+                    setSettingsLocation(profile.location || "");
+                    setModal("settings");
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    backendStatus === "connected"
-                      ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                      : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
-                  }`}
-                  title={
-                    backendStatus === "connected"
-                      ? "MongoDB Backend is connected!"
-                      : "Backend offline. Click to view status or sign in."
-                  }
+                  className="hidden sm:flex items-center gap-1.5 text-xs text-muted hover:text-ink cursor-pointer"
                 >
-                  <Database size={12} />
-                  <span>
-                    {backendStatus === "connected"
-                      ? "MongoDB Live"
-                      : "Backend Offline"}
+                  <MapPin size={14} className="text-forest" />
+                  <span className="max-w-[150px] truncate">
+                    {profile.location ? profile.location.split(",")[0] : "Set location"}
                   </span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setAuthTab("settings");
-                    setModal("settings");
-                  }}
-                  className="hidden sm:flex items-center gap-1.5 text-xs text-muted"
-                >
-                  <MapPin size={14} />
-                  <span>{profile.location.split(",")[0]}, India</span>
-                  <ChevronDown size={12} />
-                </button>
                 <div className="relative">
                   <button
                     aria-label="Notifications"
@@ -706,7 +515,7 @@ export default function App({
                           : "You’re all caught up. Add a donation to get started."}
                       </p>
                       <button
-                        className="text-xs text-forest mt-3"
+                        className="text-xs text-forest mt-3 cursor-pointer"
                         onClick={() => {
                           setView("Pickup tracking");
                           setShowNotifications(false);
@@ -718,9 +527,12 @@ export default function App({
                   )}
                 </div>
                 <button
-                  className="avatar h-8 w-8 text-[13px]"
+                  className="avatar h-8 w-8 text-[13px] cursor-pointer"
                   aria-label="Edit profile"
-                  onClick={() => setModal("settings")}
+                  onClick={() => {
+                    setSettingsLocation(profile.location || "");
+                    setModal("settings");
+                  }}
                 >
                   {profile.name
                     .split(" ")
@@ -731,430 +543,280 @@ export default function App({
               </div>
             </header>
 
-            <main className="mx-auto max-w-[1500px] px-5 py-7 sm:px-9 xl:px-11">
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-7">
-                <div>
-                  <div className="flex items-center gap-2 text-[14px] text-muted mb-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-sage" />
-                    DONOR WORKSPACE
-                  </div>
-                  <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-[-1.1px]">
-                    {view === "Overview"
-                      ? `Good to see you, ${profile.name.split(" ")[0]}.`
-                      : view === "Rewards & impact"
-                        ? "Your kindness, making a difference."
-                        : view === "NGO community"
-                          ? "Good people. A shared purpose."
-                          : view === "My requirements"
-                            ? "Tell the community what you need."
-                            : view === "Pickup tracking"
-                              ? "Follow the good you put in motion."
-                              : isNgo
-                                ? "Find a little of what your community needs."
-                                : "Every donation has a story."}
-                  </h1>
-                  <p className="mt-2 text-xs sm:text-[15px] text-muted">
-                    {view === "Overview"
-                      ? "Your donations, from shared to received."
-                      : "Small acts add up. Make your next one count."}
-                  </p>
-                </div>
-                <button
-                  className="button-primary"
-                  onClick={() => setModal("donate")}
-                >
-                  <Plus size={17} />
-                  Make a donation
-                </button>
-              </div>
-
+            <main className="p-4 sm:p-7 md:p-9 max-w-6xl mx-auto space-y-9">
               {view === "Overview" && (
                 <DonorOverview
+                  profile={profile}
                   donations={donorDonations}
-                  onViewAll={() => setView("My donations")}
+                  points={points}
+                  onAddDonation={() => {
+                    setDonateLocation(profile.location || "");
+                    setModal("donate");
+                  }}
+                  onViewTracking={() => setView("Pickup tracking")}
+                  onViewDonations={() => setView("My donations")}
                   onDetails={(item) => {
                     setSelected(item);
                     setModal("detail");
                   }}
-                  onTrack={openTrack}
-                  onDonate={() => setModal("donate")}
+                  onDownloadCertificate={downloadCertificate}
                 />
               )}
 
-              {(view === "My donations" ||
-                view === "Explore donations" ||
-                view === "Pickup tracking") && (
-                <div className="grid gap-7">
-                  <section className="min-w-0">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-[19px] font-semibold tracking-[-0.4px]">
-                          {view === "Pickup tracking"
-                            ? "Your scheduled pickups"
-                            : isNgo
-                              ? "Good things nearby"
-                              : "Your recent donations"}
-                        </h2>
-                        <span className="count-chip">{cards.length}</span>
-                      </div>
+              {view === "My donations" && (
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Your donations</h2>
+                      <p className="text-sm text-muted mt-1">
+                        Keep track of everything you’ve shared and scheduled.
+                      </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 mb-5">
-                      {categories.map((item) => {
-                        const Icon = icons[item];
+                    <button
+                      className="button-primary cursor-pointer"
+                      onClick={() => {
+                        setDonateLocation(profile.location || "");
+                        setModal("donate");
+                      }}
+                    >
+                      <Plus size={16} />
+                      Share a new item
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer shrink-0 ${
+                          category === cat
+                            ? "bg-forest text-white border-forest"
+                            : "bg-white text-muted border-line hover:border-gray-300"
+                        }`}
+                        onClick={() => setCategory(cat)}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {filtered.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {filtered.map((item) => {
+                        const Icon = icons[item.category] || Heart;
                         return (
-                          <button
-                            key={item}
-                            onClick={() => setCategory(item)}
-                            className={`category-tab ${category === item ? "category-active" : ""}`}
-                          >
-                            {Icon && <Icon size={13} />}
-                            {item}
-                          </button>
-                        );
-                      })}
-                      <div className="search-box ml-auto">
-                        <Search size={14} />
-                        <input
-                          aria-label="Search donations"
-                          placeholder="Search donations"
-                          value={query}
-                          onChange={(event) => setQuery(event.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {cards.map((item) => (
-                        <article key={item.id} className="donation-card group">
-                          <button
-                            className="donation-image"
-                            onClick={() => {
-                              setSelected(item);
-                              setModal("detail");
-                            }}
-                          >
-                            <img
-                              src={item.image}
-                              alt={
-                                item.category === "Food"
-                                  ? "Fresh food prepared for donation"
-                                  : `${item.category} ready for a new home`
-                              }
-                              className="transition-transform duration-500 group-hover:scale-105"
-                            />
-                            <span className="image-category">
-                              {React.createElement(
-                                icons[item.category] || Package,
-                                { size: 12 },
-                              )}
-                              {item.category}
-                            </span>
-                            {item.status === "Delivered" && (
-                              <span className="image-check">
-                                <Check size={13} />
-                              </span>
-                            )}
-                          </button>
-                          <div className="p-4">
-                            <div className="mb-3">
-                              <Badge status={item.status} />
+                          <article key={item.id} className="card">
+                            <div className="relative h-44 overflow-hidden rounded-t-xl">
+                              <img
+                                src={item.image || imageFallback}
+                                alt={item.title}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute top-3 left-3">
+                                <Badge status={item.status} />
+                              </div>
                             </div>
-                            <h3 className="font-semibold text-[15px] tracking-[-0.2px] leading-5">
-                              {item.title}
-                            </h3>
-                            <p className="text-[14px] text-muted mt-1">
-                              {item.quantity}
-                            </p>
-                            <div className="flex items-center gap-1 mt-3 text-[13px] text-muted">
-                              <MapPin size={12} />
-                              {item.location}
-                            </div>
-                            <div className="flex items-center gap-1 mt-2 text-[13px] text-muted">
-                              <Clock3 size={12} />
-                              {item.date}
-                            </div>
-                            <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2">
-                              <span className="text-[13px] text-muted truncate">
-                                {item.ngo || "Waiting for a kind connection"}
-                              </span>
-                              <button
-                                className="card-action"
-                                onClick={() => {
-                                  if (item.status === "Pickup scheduled")
-                                    openTrack(item);
-                                  else {
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center gap-2 text-xs text-muted">
+                                <Icon size={14} />
+                                <span>{item.category}</span>
+                                <span>•</span>
+                                <span>{item.quantity}</span>
+                              </div>
+                              <h3 className="font-semibold text-ink line-clamp-1">
+                                {item.title}
+                              </h3>
+                              <p className="text-xs text-muted line-clamp-2 leading-relaxed">
+                                {item.description || "Fresh & usable items ready for pickup."}
+                              </p>
+                              <div className="pt-2 border-t border-line flex items-center justify-between">
+                                <span className="text-xs text-muted flex items-center gap-1">
+                                  <MapPin size={12} />
+                                  <span className="truncate max-w-[130px]">{item.location}</span>
+                                </span>
+                                <button
+                                  className="text-xs text-forest font-semibold flex items-center gap-1 hover:underline cursor-pointer"
+                                  onClick={() => {
                                     setSelected(item);
                                     setModal("detail");
-                                  }
-                                }}
-                              >
-                                {item.status === "Pickup scheduled"
-                                  ? "Track pickup"
-                                  : item.status === "Delivered"
-                                    ? "View impact"
-                                    : isNgo
-                                      ? "Reserve"
-                                      : "View details"}
-                                <ArrowUpRight size={12} />
-                              </button>
+                                  }}
+                                >
+                                  View details <ArrowRight size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <HeartHandshake size={32} />
+                      <h3>No donations in this view</h3>
+                      <p>Share something good from your pantry, closet or home.</p>
+                      <button
+                        className="button-primary mt-4 cursor-pointer"
+                        onClick={() => {
+                          setDonateLocation(profile.location || "");
+                          setModal("donate");
+                        }}
+                      >
+                        <Plus size={16} /> Share an item
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {view === "Pickup tracking" && (
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-semibold">Pickup tracking</h2>
+                    <p className="text-sm text-muted mt-1">
+                      Live status of scheduled collections by NGO partners.
+                    </p>
+                  </div>
+
+                  {cards.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {cards.map((item) => (
+                        <div key={item.id} className="card p-5 space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <Badge status={item.status} />
+                              <h3 className="font-semibold text-lg mt-2">{item.title}</h3>
+                              <p className="text-xs text-muted mt-0.5">
+                                Coordinating with: <strong>{item.ngo || "NGO Partner"}</strong>
+                              </p>
+                            </div>
+                            <span className="text-xs font-mono text-muted bg-canvas px-2.5 py-1 rounded">
+                              {item.id}
+                            </span>
+                          </div>
+                          <div className="p-3 bg-canvas rounded-lg text-xs space-y-1.5">
+                            <div className="flex justify-between">
+                              <span className="text-muted">Location:</span>
+                              <strong>{item.location}</strong>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Pickup window:</span>
+                              <strong>{item.date}</strong>
                             </div>
                           </div>
-                        </article>
+                          <button
+                            className="button-primary w-full justify-center cursor-pointer"
+                            onClick={() => openTrack(item)}
+                          >
+                            <Truck size={15} />
+                            Track live collection
+                          </button>
+                        </div>
                       ))}
                     </div>
-                    {cards.length === 0 && (
-                      <div className="empty-state">
-                        <Package size={32} />
-                        <h3>No donations here just yet.</h3>
-                        <p>Try another category, or start something good.</p>
-                        <button
-                          className="button-primary mt-4"
-                          onClick={() => {
-                            setQuery("");
-                            setCategory("All items");
-                          }}
-                        >
-                          Show all donations
-                        </button>
-                      </div>
-                    )}
-                  </section>
+                  ) : (
+                    <div className="empty-state">
+                      <Truck size={32} />
+                      <h3>No active pickups scheduled</h3>
+                      <p>When an NGO reserves your donation, collection details will appear here.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {view === "NGO community" && (
-                <section className="mt-8">
-                  <div className="flex items-end justify-between mb-4">
-                    <div>
-                      <h2 className="text-[19px] font-semibold tracking-[-0.4px]">
-                        {view === "My requirements"
-                          ? "Community requirements"
-                          : "A little help, where it’s needed"}
-                      </h2>
-                      <p className="text-[14px] text-muted mt-1">
-                        Real needs. Nearby communities. Your chance to make a
-                        difference.
-                      </p>
-                    </div>
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-semibold">NGO Community Needs</h2>
+                    <p className="text-sm text-muted mt-1">
+                      See current high-priority requirements from verified local non-profits.
+                    </p>
                   </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    {ngos.map((need, index) => {
-                      const Icon = icons[need.category] || Heart;
-                      return (
-                        <article
-                          className="need-card"
-                          key={`${need.name}-${index}`}
-                        >
-                          <div className="flex items-center gap-2 mb-4">
-                            <span
-                              className={`need-icon tone-${need.color || "green"}`}
-                            >
-                              <Icon size={17} />
-                            </span>
-                            <span className="font-semibold text-[14px]">
-                              {need.name}
-                            </span>
-                            <ShieldCheck
-                              size={13}
-                              className="text-sage ml-auto"
-                              title="Demo NGO partner"
-                            />
-                          </div>
-                          <h3 className="text-[15px] font-semibold">
-                            {need.title}
-                          </h3>
-                          <p className="mt-1.5 text-[13px] text-muted">
-                            {need.detail}
-                          </p>
-                          <div className="flex justify-between items-center mt-5">
-                            <span className="text-[12px] text-muted bg-canvas rounded px-2 py-1.5">
-                              {need.amount}
-                            </span>
-                            <button
-                              className="text-[13px] text-forest font-semibold flex gap-1 items-center"
-                              onClick={() => {
-                                setCategory(need.category);
-                                setSelected(need);
-                                setModal(isNgo ? "need-detail" : "donate");
-                              }}
-                            >
-                              {" "}
-                              {isNgo ? "View need" : "Lend a hand"}
-                              <ArrowUpRight size={12} />
-                            </button>
-                          </div>
-                        </article>
-                      );
-                    })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {ngos.map((need, idx) => (
+                      <div key={idx} className="need-card space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-forest/10 text-forest">
+                            {need.category}
+                          </span>
+                          <span className="text-xs text-muted font-medium">{need.amount}</span>
+                        </div>
+                        <h3 className="font-semibold text-ink text-base">{need.title}</h3>
+                        <p className="text-xs text-muted leading-relaxed">{need.detail}</p>
+                        <div className="pt-3 border-t border-line flex items-center justify-between">
+                          <strong className="text-xs text-ink">{need.name}</strong>
+                          <button
+                            className="text-xs text-forest font-semibold hover:underline cursor-pointer"
+                            onClick={() => {
+                              setDonateLocation(profile.location || "");
+                              setModal("donate");
+                            }}
+                          >
+                            Help fulfill →
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </section>
+                </div>
               )}
 
               {view === "Rewards & impact" && (
-                <section className="grid lg:grid-cols-[1.2fr_1fr] gap-6">
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold">Rewards & Community Impact</h2>
+                    <p className="text-sm text-muted mt-1">
+                      Every verified donation builds verified kindness points.
+                    </p>
+                  </div>
+
                   <div className="reward-feature">
-                    <Award
-                      size={48}
-                      strokeWidth={1.3}
-                      className="text-[#a28b52]"
-                    />
-                    <p className="text-xs tracking-widest text-muted mt-7">
-                      YOUR KINDNESS BALANCE
-                    </p>
-                    <h2 className="text-6xl font-semibold tracking-tight mt-3">
-                      {points.toLocaleString()}
-                      <span className="text-base text-muted ml-3">points</span>
-                    </h2>
-                    <p className="text-sm text-muted mt-4">
-                      Every verified donation earns 120 points.
-                    </p>
-                    <div className="mt-8 bg-white/70 rounded-2xl p-5">
-                      <div className="flex justify-between text-xs">
-                        <span>Next milestone: Heart of Gold</span>
-                        <strong>{Math.min(1500, points)} / 1,500</strong>
-                      </div>
-                      <div className="h-2 mt-4 rounded-full bg-[#e7dfc8]">
-                        <div
-                          className="h-full rounded-full bg-[#ad945b]"
-                          style={{
-                            width: `${Math.min(100, (points / 1500) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-3 mt-7 flex-wrap">
+                    <div className="max-w-xl space-y-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-forest">
+                        YOUR KINDNESS CERTIFICATE
+                      </span>
+                      <h3 className="text-2xl font-serif text-ink">
+                        Official Recognition of Giving
+                      </h3>
+                      <p className="text-sm text-muted leading-relaxed">
+                        Earned through verified collections. You have delivered {delivered.length} verified donations and gathered {points} kindness points.
+                      </p>
                       <button
-                        className="button-primary"
-                        disabled={!delivered.length}
                         onClick={downloadCertificate}
+                        className="button-primary mt-2 cursor-pointer"
                       >
                         <Download size={16} />
-                        Download certificate
-                      </button>
-                      <button
-                        className="button-outline"
-                        onClick={() => {
-                          if (points < 1500)
-                            notify(
-                              `Just ${1500 - points} more points to unlock the Heart of Gold badge.`,
-                            );
-                          else
-                            notify(
-                              "Heart of Gold badge unlocked. Thank you for making a difference!",
-                            );
-                        }}
-                      >
-                        View milestone
-                        <ArrowRight size={14} />
+                        Download Certificate (SVG)
                       </button>
                     </div>
-                    <p className="text-[13px] text-muted mt-4">
-                      Demo totals include sample activity. Certificates reflect
-                      verified donations here.
-                    </p>
                   </div>
-                  <div className="space-y-5">
-                    <div className="panel p-7">
-                      <h3 className="text-lg font-semibold mb-5">
-                        Good, in real numbers.
-                      </h3>
-                      {[
-                        [
-                          HeartHandshake,
-                          `${delivered.length}`,
-                          "Donations delivered",
-                        ],
-                        [
-                          Users,
-                          `${delivered.length * 25}`,
-                          "Estimated people supported",
-                        ],
-                        [
-                          Leaf,
-                          `${delivered.length * 5} kg`,
-                          "Estimated waste diverted",
-                        ],
-                      ].map(([Icon, value, label]) => (
-                        <div
-                          className="flex gap-4 py-5 border-b last:border-0 border-line"
-                          key={label}
-                        >
-                          <span className="stat-icon tone-green">
-                            <Icon size={22} />
-                          </span>
-                          <div>
-                            <strong className="text-2xl">{value}</strong>
-                            <p className="text-xs text-muted mt-1">{label}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="panel p-7">
-                      <h3 className="font-semibold mb-5">
-                        Your collection of kindness
-                      </h3>
-                      <div className="flex gap-5">
-                        {[
-                          [Sprout, "First step", true],
-                          [Heart, "Kind heart", delivered.length >= 3],
-                          [Award, "Heart of gold", points >= 1500],
-                        ].map(([Icon, label, earned]) => (
-                          <div
-                            key={label}
-                            className={`text-center flex-1 ${earned ? "" : "opacity-35"}`}
-                          >
-                            <span className="mx-auto flex h-16 w-16 rounded-full bg-[#eff1e6] items-center justify-center text-forest">
-                              <Icon size={28} />
-                            </span>
-                            <p className="text-xs mt-3">{label}</p>
-                            <p className="text-[12px] text-muted mt-1">
-                              {earned ? "Unlocked" : "Keep giving"}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                </div>
               )}
-
-              <footer className="mt-9 pt-5 border-t border-line flex flex-wrap justify-between gap-3 text-[13px] text-muted">
-                <span>Made for a world with a little more kindness.</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-1 w-1 rounded-full bg-sage" />
-                  KindRoute · Frontend demo<span className="mx-2">/</span>
-                  <button
-                    onClick={() => setModal("register")}
-                    className="hover:text-forest"
-                  >
-                    Switch to {isNgo ? "donor" : "NGO"} workspace{" "}
-                    <ArrowUpRight size={10} className="inline" />
-                  </button>
-                </span>
-              </footer>
             </main>
           </div>
         </>
       )}
 
+      {/* TOAST NOTIFICATION */}
       {toast && (
         <div role="status" className="toast">
           <span className="rounded-full bg-[#e1eddb] p-1 text-forest">
             <Check size={16} />
           </span>
           {toast}
-          <button aria-label="Dismiss message" onClick={() => setToast("")}>
+          <button aria-label="Dismiss message" onClick={() => setToast("")} className="cursor-pointer">
             <X size={15} />
           </button>
         </div>
       )}
 
+      {/* MODAL 1: DONATE FORM (WITH CURRENT LOCATION PICKER) */}
       {modal === "donate" && (
         <Modal
           title="Give something a new beginning"
           onClose={() => setModal(null)}
         >
           <p className="text-xs text-muted mb-6">
-            A few details help your donation reach the right hands.
+            A few details help your donation reach the right hands safely.
           </p>
           <form onSubmit={saveDonation} className="space-y-4">
             <label className="field">
@@ -1188,15 +850,64 @@ export default function App({
                 />
               </label>
             </div>
-            <label className="field">
-              Pickup address
-              <input
-                required
-                name="location"
-                defaultValue={profile.location}
-                maxLength={150}
-              />
-            </label>
+
+            {/* PICKUP ADDRESS WITH WORKING CURRENT LOCATION BUTTON */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-ink">
+                  Pickup address
+                </label>
+                <span className="text-xs text-muted">Accurate pickup location</span>
+              </div>
+
+              <div className="p-3 rounded-lg border border-line bg-white space-y-2.5">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLocatingDonate(true);
+                    setDonateLocError("");
+                    try {
+                      const loc = await getCurrentLocation();
+                      setDonateLocation(loc.formattedLocation);
+                      if (loc.coordinates) setDonateCoords(loc.coordinates);
+                    } catch (err) {
+                      setDonateLocError(err.message || "Failed to detect location.");
+                    } finally {
+                      setLocatingDonate(false);
+                    }
+                  }}
+                  disabled={locatingDonate}
+                  className="w-full py-2.5 px-3.5 rounded-md bg-[#eef4ea] hover:bg-[#e2edd9] text-forest border border-[#cadbc1] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  {locatingDonate ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin text-forest" />
+                      Detecting current location…
+                    </>
+                  ) : (
+                    <>
+                      <MapPin size={15} className="text-forest" />
+                      {donateLocation ? "Re-detect current pickup location" : "Use current location"}
+                    </>
+                  )}
+                </button>
+
+                {donateLocation && (
+                  <div className="flex items-start gap-2 pt-1 text-xs text-forest bg-forest/5 p-2.5 rounded border border-forest/15">
+                    <Check size={14} className="shrink-0 mt-0.5 text-forest" />
+                    <div>
+                      <strong className="block text-ink">Pickup Location:</strong>
+                      <span className="text-muted leading-relaxed">{donateLocation}</span>
+                    </div>
+                  </div>
+                )}
+
+                {donateLocError && (
+                  <p className="text-xs text-red-600 pt-1">{donateLocError}</p>
+                )}
+              </div>
+            </div>
+
             <label className="field">
               Available for pickup
               <input
@@ -1222,376 +933,124 @@ export default function App({
             </label>
             <p className="flex gap-2 text-[13px] text-muted leading-5">
               <ShieldCheck size={17} className="shrink-0 text-forest" />
-              Please share safe, usable items. Food should be fresh,
-              hygienically packed, and within its consumption window.
+              Please share safe, usable items. Food should be fresh, hygienically packed, and within its consumption window.
             </p>
             <button
-              className="button-primary w-full justify-center"
+              className="button-primary w-full justify-center cursor-pointer"
               type="submit"
             >
               Make it available
               <ArrowRight size={16} />
             </button>
-            <p className="text-[13px] text-muted text-center">
-              Saved in this browser · Images are category illustrations
-            </p>
           </form>
         </Modal>
       )}
 
-      {(modal === "register" || modal === "settings") && (
+      {/* MODAL 2: ACCOUNT SETTINGS (NO SWITCH WORKSPACE) */}
+      {modal === "settings" && (
         <Modal
-          title={
-            authTab === "login"
-              ? "Sign in to KindRoute"
-              : authTab === "register"
-                ? "Join the KindRoute Network"
-                : "Profile & Workspace"
-          }
-          onClose={() => {
-            setModal(null);
-            setAuthError("");
-          }}
+          title="Account Settings"
+          onClose={() => setModal(null)}
         >
-          {/* Tabs header */}
-          <div className="flex border-b border-line mb-5 -mt-2">
-            <button
-              type="button"
-              className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all ${
-                authTab === "login"
-                  ? "border-forest text-forest"
-                  : "border-transparent text-muted hover:text-ink"
-              }`}
-              onClick={() => {
-                setAuthTab("login");
-                setAuthError("");
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all ${
-                authTab === "register"
-                  ? "border-forest text-forest"
-                  : "border-transparent text-muted hover:text-ink"
-              }`}
-              onClick={() => {
-                setAuthTab("register");
-                setAuthError("");
-              }}
-            >
-              Create Account
-            </button>
-            <button
-              type="button"
-              className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all ${
-                authTab === "settings"
-                  ? "border-forest text-forest"
-                  : "border-transparent text-muted hover:text-ink"
-              }`}
-              onClick={() => {
-                setAuthTab("settings");
-                setAuthError("");
-              }}
-            >
-              Workspace & Switch
-            </button>
-          </div>
-
-          {/* Backend Status banner */}
-          <div
-            className={`p-3 rounded-lg text-xs flex items-center justify-between mb-4 ${
-              backendStatus === "connected"
-                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                : "bg-amber-50 text-amber-800 border border-amber-200"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  backendStatus === "connected"
-                    ? "bg-emerald-600 animate-pulse"
-                    : "bg-amber-500"
-                }`}
+          <form className="space-y-4" onSubmit={saveProfile}>
+            <label className="field">
+              {isNgo ? "NGO Name" : "Full Name"}
+              <input
+                name="name"
+                required
+                defaultValue={profile.name}
+                maxLength={60}
               />
-              <span>
-                {backendStatus === "connected"
-                  ? "MongoDB Backend is connected & live"
-                  : "Backend offline (Run 'npm run backend' to connect MongoDB)"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={syncBackend}
-              className="underline text-xs flex items-center gap-1 hover:opacity-80"
-              title="Refresh connection status"
-            >
-              <RefreshCw size={12} />
-              Refresh
-            </button>
-          </div>
+            </label>
 
-          {authError && (
-            <div className="p-3 mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
-              {authError}
-            </div>
-          )}
+            <label className="field">
+              Mobile phone number
+              <input
+                name="phone"
+                type="tel"
+                defaultValue={profile.phone || ""}
+                placeholder="+91 98765 43210"
+              />
+            </label>
 
-          {/* Tab 1: Login */}
-          {authTab === "login" && (
-            <form className="space-y-4" onSubmit={handleLogin}>
-              <p className="text-xs text-muted mb-2">
-                Log in with your registered MongoDB account to sync your donations and collections.
-              </p>
-              <label className="field">
-                Email Address
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  value={loginCreds.email}
-                  onChange={(e) =>
-                    setLoginCreds({ ...loginCreds, email: e.target.value })
-                  }
-                  placeholder="you@example.com"
-                />
-              </label>
-              <label className="field">
-                Password
-                <input
-                  name="password"
-                  type="password"
-                  required
-                  value={loginCreds.password}
-                  onChange={(e) =>
-                    setLoginCreds({ ...loginCreds, password: e.target.value })
-                  }
-                  placeholder="••••••••"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="button-primary w-full justify-center"
-              >
-                {authLoading ? "Logging in..." : "Sign In to Account"}
-                <ArrowRight size={15} />
-              </button>
-
-              <div className="pt-3 border-t border-line text-xs text-muted">
-                <span className="block mb-2 font-medium text-ink">
-                  Or quick sign-in with seeded demo accounts:
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    className="p-2 border border-line rounded text-left hover:bg-forest/5 text-ink transition-colors"
-                    onClick={() =>
-                      setLoginCreds({
-                        email: "alex@kindroute.org",
-                        password: "password123",
-                      })
-                    }
-                  >
-                    <strong>Alex Morgan</strong>
-                    <span className="block text-[11px] text-muted">
-                      Donor Workspace
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="p-2 border border-line rounded text-left hover:bg-forest/5 text-ink transition-colors"
-                    onClick={() =>
-                      setLoginCreds({
-                        email: "robinhood@kindroute.org",
-                        password: "password123",
-                      })
-                    }
-                  >
-                    <strong>Robin Hood Army</strong>
-                    <span className="block text-[11px] text-muted">
-                      NGO Workspace
-                    </span>
-                  </button>
-                </div>
+            {/* LOCATION WITH CURRENT LOCATION BUTTON */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-ink">
+                  {isNgo ? "NGO Location" : "Your city / location"}
+                </label>
+                <span className="text-xs text-muted">Auto-detected via GPS</span>
               </div>
-            </form>
-          )}
 
-          {/* Tab 2: Create Account / Register */}
-          {authTab === "register" && (
-            <form className="space-y-4" onSubmit={handleRegister}>
-              <p className="text-xs text-muted mb-2">
-                Choose your role and register an account in MongoDB.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {["donor", "ngo"].map((role) => (
-                  <label
-                    key={`reg-${role}`}
-                    className="role-choice cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={role}
-                      defaultChecked={role === "donor"}
-                    />
-                    <span>
-                      {role === "donor" ? (
-                        <HeartHandshake size={23} />
-                      ) : (
-                        <Users size={23} />
-                      )}
-                      <strong>
-                        {role === "donor"
-                          ? "I want to give"
-                          : "I represent an NGO"}
-                      </strong>
-                      <small>
-                        {role === "donor"
-                          ? "Donor workspace"
-                          : "NGO collection desk"}
-                      </small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <label className="field">
-                Full Name / NGO Organization Name
-                <input
-                  name="name"
-                  required
-                  placeholder="e.g. Hope Foundation or Sarah Jenkins"
-                  maxLength={60}
-                />
-              </label>
-              <label className="field">
-                Email Address
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  placeholder="name@domain.com"
-                />
-              </label>
-              <label className="field">
-                Password
-                <input
-                  name="password"
-                  type="password"
-                  required
-                  placeholder="At least 6 characters"
-                  minLength={6}
-                />
-              </label>
-              <label className="field">
-                City / Area Location
-                <input
-                  name="location"
-                  required
-                  defaultValue={profile.location || "Noida, Uttar Pradesh"}
-                  placeholder="e.g. Sector 62, Noida"
-                  maxLength={120}
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="button-primary w-full justify-center"
-              >
-                {authLoading ? "Creating account..." : "Create MongoDB Account"}
-                <ArrowRight size={15} />
-              </button>
-            </form>
-          )}
-
-          {/* Tab 3: Settings & Workspace Switch */}
-          {authTab === "settings" && (
-            <div className="space-y-5">
-              <div className="p-4 rounded-xl bg-forest/5 border border-forest/15">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] font-semibold tracking-wider text-muted uppercase">
-                      Active Workspace
-                    </span>
-                    <h4 className="text-base font-semibold text-ink mt-0.5">
-                      {isNgo ? "NGO Workspace" : "Donor Workspace"}
-                    </h4>
-                    <p className="text-xs text-muted mt-1">
-                      {isNgo
-                        ? "Currently exploring available donations and scheduling pickups."
-                        : "Currently listing donations and tracking deliveries."}
-                    </p>
-                  </div>
-                  <span className="p-3 bg-white rounded-lg text-forest shadow-sm">
-                    {isNgo ? <Users size={22} /> : <HeartHandshake size={22} />}
-                  </span>
-                </div>
+              <div className="p-3 rounded-lg border border-line bg-white space-y-2.5">
                 <button
                   type="button"
-                  className="button-primary mt-4 w-full justify-center"
-                  onClick={() => {
-                    handleSwitchWorkspace();
-                    setModal(null);
+                  onClick={async () => {
+                    setLocatingSettings(true);
+                    setSettingsLocError("");
+                    try {
+                      const loc = await getCurrentLocation();
+                      setSettingsLocation(loc.formattedLocation);
+                    } catch (err) {
+                      setSettingsLocError(err.message || "Failed to detect location.");
+                    } finally {
+                      setLocatingSettings(false);
+                    }
                   }}
+                  disabled={locatingSettings}
+                  className="w-full py-2.5 px-3.5 rounded-md bg-[#eef4ea] hover:bg-[#e2edd9] text-forest border border-[#cadbc1] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <RefreshCw size={15} />
-                  Switch to {isNgo ? "Donor Workspace" : "NGO Workspace"}
+                  {locatingSettings ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin text-forest" />
+                      Detecting current location…
+                    </>
+                  ) : (
+                    <>
+                      <MapPin size={15} className="text-forest" />
+                      {settingsLocation ? "Re-detect current location" : "Use current location"}
+                    </>
+                  )}
                 </button>
+
+                {settingsLocation && (
+                  <div className="flex items-start gap-2 pt-1 text-xs text-forest bg-forest/5 p-2.5 rounded border border-forest/15">
+                    <Check size={14} className="shrink-0 mt-0.5 text-forest" />
+                    <div>
+                      <strong className="block text-ink">Registered Location:</strong>
+                      <span className="text-muted leading-relaxed">{settingsLocation}</span>
+                    </div>
+                  </div>
+                )}
+
+                {settingsLocError && (
+                  <p className="text-xs text-red-600 pt-1">{settingsLocError}</p>
+                )}
               </div>
-
-              <form className="space-y-4 pt-1" onSubmit={saveProfile}>
-                <h4 className="text-sm font-semibold text-ink">
-                  Update Profile Details
-                </h4>
-                <label className="field">
-                  Name / Organisation Name
-                  <input
-                    name="name"
-                    required
-                    defaultValue={profile.name}
-                    maxLength={60}
-                  />
-                </label>
-                <label className="field">
-                  Location
-                  <input
-                    name="location"
-                    required
-                    defaultValue={profile.location}
-                    maxLength={120}
-                  />
-                </label>
-                <input type="hidden" name="role" value={profile.role} />
-                <button
-                  type="submit"
-                  className="button-outline w-full justify-center"
-                >
-                  Save Profile Changes
-                </button>
-              </form>
-
-              {getToken() && (
-                <div className="pt-3 border-t border-line flex items-center justify-between">
-                  <span className="text-xs text-muted">
-                    Signed in as {profile.email || profile.name}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-xs text-red-600 hover:underline flex items-center gap-1 font-medium"
-                    onClick={handleLogout}
-                  >
-                    <LogOut size={13} />
-                    Log Out
-                  </button>
-                </div>
-              )}
             </div>
-          )}
+
+            <button className="button-primary w-full justify-center cursor-pointer mt-2">
+              Save Profile Changes
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-line flex items-center justify-between">
+            <span className="text-xs text-muted">
+              Signed in as <strong>{profile.email}</strong> ({isNgo ? "NGO Account" : "Donor Account"})
+            </span>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="text-xs text-red-600 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              <LogOut size={13} />
+              Log Out
+            </button>
+          </div>
         </Modal>
       )}
 
+      {/* MODAL 3: TRACKING MODAL */}
       {modal === "tracking" && selected && (
         <Modal
           title="A little good is on its way"
@@ -1602,7 +1061,7 @@ export default function App({
             <div>
               <h3 className="font-semibold">{selected.title}</h3>
               <p className="text-xs text-muted mt-1">
-                {selected.id} · {selected.ngo}
+                {selected.id} · {selected.ngo || "Assigned NGO"}
               </p>
             </div>
             <Badge
@@ -1615,7 +1074,7 @@ export default function App({
             <div className="flex-1">
               <strong className="text-sm">Arjun Kumar</strong>
               <p className="text-xs text-muted">
-                Collection volunteer · Demo driver
+                Collection volunteer · Live dispatch
               </p>
             </div>
             <span className="text-xs text-forest font-semibold">
@@ -1638,70 +1097,37 @@ export default function App({
           </div>
           <div className="flex gap-3 mt-6 flex-wrap">
             <button
-              className="button-primary"
+              className="button-primary cursor-pointer"
               disabled={simulating || progress >= 1}
               onClick={() => setSimulating(true)}
             >
               <Truck size={15} />
               {simulating
-                ? "Driver is moving…"
+                ? "Driver moving…"
                 : progress >= 1
                   ? "Driver arrived"
-                  : "Simulate live pickup"}
+                  : "Dispatch live pickup"}
             </button>
             <button
-              className="button-outline"
+              className="button-outline cursor-pointer"
               disabled={progress < 1}
               onClick={completePickup}
             >
               <CheckCheck size={16} />
               Verify delivered
             </button>
-            <button
-              className="button-outline ml-auto"
-              onClick={() => {
-                if (!navigator.geolocation)
-                  return notify("Geolocation is unavailable in this browser.");
-                navigator.geolocation.getCurrentPosition(
-                  (position) => {
-                    setSelected((item) => ({
-                      ...item,
-                      coordinates: [
-                        position.coords.latitude,
-                        position.coords.longitude,
-                      ],
-                    }));
-                    setProgress(0);
-                    setSimulating(false);
-                    notify("Map updated to your GPS location.");
-                  },
-                  () =>
-                    notify(
-                      "Location unavailable. Enable browser location access to use GPS.",
-                    ),
-                  { timeout: 10000 },
-                );
-              }}
-            >
-              <MapPin size={15} />
-              Use my GPS
-            </button>
           </div>
-          <p className="text-[13px] mt-4 text-muted leading-5">
-            Simulated driver movement on a real map. GPS uses your browser’s
-            location permission. Actual driver tracking, route optimisation and
-            verification require a backend.
-          </p>
         </Modal>
       )}
 
+      {/* MODAL 4: DETAIL MODAL */}
       {modal === "detail" && selected && (
         <Modal
-          title="Every donation has a story"
+          title="Donation Details"
           onClose={() => setModal(null)}
         >
           <img
-            src={selected.image}
+            src={selected.image || imageFallback}
             alt={selected.category}
             className="w-full h-48 object-cover rounded-xl mb-5"
           />
@@ -1712,11 +1138,11 @@ export default function App({
           </p>
           <div className="grid grid-cols-2 gap-4 bg-canvas p-4 rounded-xl mt-5 text-xs">
             <div>
-              <span className="text-muted block mb-1">Sharing</span>
+              <span className="text-muted block mb-1">Quantity</span>
               {selected.quantity}
             </div>
             <div>
-              <span className="text-muted block mb-1">Location</span>
+              <span className="text-muted block mb-1">Pickup location</span>
               {selected.location}
             </div>
             <div>
@@ -1725,12 +1151,12 @@ export default function App({
             </div>
             <div>
               <span className="text-muted block mb-1">NGO partner</span>
-              {selected.ngo || "Not reserved yet"}
+              {selected.ngo || "Awaiting NGO reservation"}
             </div>
           </div>
           {selected.status === "Available" && isNgo && (
             <button
-              className="button-primary mt-5 w-full justify-center"
+              className="button-primary mt-5 w-full justify-center cursor-pointer"
               onClick={() => reserve(selected)}
             >
               Reserve & schedule pickup
@@ -1739,39 +1165,25 @@ export default function App({
           )}
           {selected.status === "Available" && !isNgo && (
             <p className="text-xs text-muted mt-5">
-              Your donation is visible in the NGO workspace. Switch workspaces
-              to try reserving it.
+              Your donation is live on the network. A nearby verified NGO will reserve it for pickup.
             </p>
           )}
           {selected.status === "Pickup scheduled" && (
             <button
-              className="button-primary mt-5 w-full justify-center"
+              className="button-primary mt-5 w-full justify-center cursor-pointer"
               onClick={() => openTrack(selected)}
             >
               Track pickup
               <Truck size={16} />
             </button>
           )}
-          {selected.status === "Delivered" && !isNgo && (
-            <div className="mt-5 flex items-center gap-3 text-forest bg-[#eff5ed] rounded-xl p-4">
-              <Award size={25} />
-              <div>
-                <strong className="text-sm">
-                  Kindness delivered. +120 points.
-                </strong>
-                <p className="text-xs mt-1">
-                  A new beginning, made possible by you.
-                </p>
-              </div>
-            </div>
-          )}
-          {selected.status === "Delivered" && isNgo && (
+          {selected.status === "Delivered" && (
             <div className="mt-5 flex items-center gap-3 text-forest bg-[#eff5ed] rounded-xl p-4">
               <CheckCheck size={25} />
               <div>
                 <strong className="text-sm">Collection completed</strong>
                 <p className="text-xs mt-1">
-                  Received by {selected.ngo} · {selected.id}
+                  Verified delivery · {selected.ngo || "NGO"} · {selected.id}
                 </p>
               </div>
             </div>
@@ -1779,6 +1191,7 @@ export default function App({
         </Modal>
       )}
 
+      {/* MODAL 5: HELP MODAL */}
       {modal === "help" && (
         <Modal
           title="A little kindness goes a long way"
@@ -1789,22 +1202,22 @@ export default function App({
               [
                 HeartHandshake,
                 "01 · Share what you can",
-                "Create a donor profile and list fresh food or usable goods with quantity, condition and pickup details.",
+                "List fresh food, clothing or usable goods with accurate quantity and location details.",
               ],
               [
                 Users,
                 "02 · Find the right hands",
-                "NGOs browse nearby donations by category and reserve what their community needs.",
+                "Verified non-profit organisations browse nearby donations and schedule doorstep collections.",
               ],
               [
                 Truck,
-                "03 · Follow the good",
-                "Simulate the collection route on a real map, then verify the delivery on arrival.",
+                "03 · Follow the route",
+                "Track the collection dispatch in real-time as volunteers navigate to pickup items.",
               ],
               [
                 Award,
-                "04 · Keep the kindness going",
-                "Earn 120 points for a verified delivery and download your certificate.",
+                "04 · Verified community impact",
+                "Earn 120 kindness points for each completed delivery and download your verification certificate.",
               ],
             ].map(([Icon, title, text]) => (
               <div key={title} className="flex gap-4">
@@ -1819,9 +1232,7 @@ export default function App({
             ))}
           </div>
           <p className="text-[13px] text-muted mt-7 border-t border-line pt-4">
-            This is a frontend prototype. Data stays in this browser. Sample
-            partners, impact estimates and routes are for demonstration. Map
-            tiles require an internet connection.
+            KindRoute is a community donation and collection network. Connect surplus resources with local non-profit partners.
           </p>
         </Modal>
       )}

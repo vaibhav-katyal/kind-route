@@ -24,7 +24,7 @@ export const initialDonations = [
     description:
       "Freshly prepared vegetarian rice, dal and vegetables. Packed in individual boxes.",
     coordinates: [28.627, 77.371],
-    owner: "demo-donor",
+    owner: "Community donor",
   },
   {
     id: "KR-1041",
@@ -41,7 +41,7 @@ export const initialDonations = [
     description:
       "Clean sweaters and jackets, in good condition. Mixed adult sizes.",
     coordinates: [28.642, 77.369],
-    owner: "demo-donor",
+    owner: "Community donor",
   },
   {
     id: "KR-1040",
@@ -58,7 +58,7 @@ export const initialDonations = [
     description:
       "Children’s storybooks and unused notebooks for school students.",
     coordinates: [28.57, 77.363],
-    owner: "demo-donor",
+    owner: "Community donor",
   },
   {
     id: "KR-1039",

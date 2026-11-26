@@ -72,8 +72,8 @@ export default function LandingPage({ onEnter }) {
           <a href="#how-it-works">How it works</a>
           <a href="#the-good-circle">The good circle</a>
         </nav>
-        <button className="landing-login" onClick={() => onEnter()}>
-          Go to dashboard <ArrowUpRight size={17} />
+        <button className="landing-login" onClick={() => onEnter("donor", false)}>
+          Log in <ArrowUpRight size={17} />
         </button>
       </header>
 
@@ -392,8 +392,8 @@ export default function LandingPage({ onEnter }) {
         <span>
           Made for a kinder everyday. <Heart size={13} />
         </span>
-        <button onClick={() => onEnter()}>
-          Explore the demo <ArrowUpRight size={15} />
+        <button onClick={() => onEnter("donor", true)}>
+          Get started <ArrowUpRight size={15} />
         </button>
       </footer>
     </div>

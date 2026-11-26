@@ -148,11 +148,10 @@ export default function NgoDashboard({
                 .slice(0, 2)
                 .join("")}
             </span>
-            <span>
+            <div>
               <strong>{profile.name}</strong>
-              <small>Switch workspace</small>
-            </span>
-            <ChevronDown size={16} />
+              <small>NGO Workspace</small>
+            </div>
           </button>
         </div>
       </aside>
@@ -275,7 +274,7 @@ export default function NgoDashboard({
                           Pickup details
                         </button>
                       </div>
-                      <small>Demo pickup · simulated driver location</small>
+                      <small>Scheduled pickup · live collection dispatch</small>
                     </div>
                     <div className="ngo-queue-map">
                       <PickupMap coordinates={nextPickup.coordinates} />
@@ -376,9 +375,7 @@ export default function NgoDashboard({
                       </div>
                       <div className="ngo-card-bottom">
                         <span>
-                          {item.owner === "demo-donor"
-                            ? "Community donor"
-                            : item.owner}
+                          {item.owner || "Community donor"}
                         </span>
                         <button
                           className="card-action"
@@ -451,10 +448,7 @@ export default function NgoDashboard({
           </section>
           <footer className="ngo-footer">
             <span>KindRoute · NGO collection workspace</span>
-            <span>Browser demo · shared local donation data</span>
-            <button onClick={onAccount}>
-              Switch to donor workspace <ArrowUpRight size={14} />
-            </button>
+            <span>Real-time community network</span>
           </footer>
         </main>
       </div>
