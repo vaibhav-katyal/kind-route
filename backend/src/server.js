@@ -10,6 +10,9 @@ import donationRoutes from "./routes/donationRoutes.js";
 import needRoutes from "./routes/needRoutes.js";
 import statsRoutes from "./routes/statsRoutes.js";
 
+import dns from 'dns';
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 // Load environment variables from .env
 dotenv.config();
 
