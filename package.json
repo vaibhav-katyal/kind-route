@@ -7,6 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "backend": "npm --prefix backend run dev",
+    "backend:start": "npm --prefix backend start",
+    "seed": "npm --prefix backend run seed",
     "test:e2e": "node scripts/check-browser.cjs"
   },
   "dependencies": {

@@ -10,10 +10,12 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
+  Database,
   Download,
   Gift,
   Heart,
   HeartHandshake,
+  KeyRound,
   LayoutDashboard,
   Leaf,
   LogOut,
@@ -21,12 +23,14 @@ import {
   Menu,
   Package,
   Plus,
+  RefreshCw,
   Search,
   Settings,
   ShieldCheck,
   Shirt,
   Sprout,
   Truck,
+  UserCheck,
   Users,
   Utensils,
   X,
@@ -39,6 +43,7 @@ import PickupMap from "./components/PickupMap";
 import usePersistentState from "./hooks/usePersistentState";
 import NgoDashboard from "./components/NgoDashboard";
 import DonorOverview from "./components/DonorOverview";
+import api, { getToken, setToken, removeToken } from "./api";
 
 const icons = {
   Food: Utensils,
@@ -77,6 +82,58 @@ export default function App({
   const [progress, setProgress] = useState(0);
   const [simulating, setSimulating] = useState(false);
   const [ngos] = usePersistentState("kindroute-needs", needs);
+
+  // Backend & MongoDB state
+  const [backendStatus, setBackendStatus] = useState("connecting");
+  const [authTab, setAuthTab] = useState(initialRegistration ? "register" : "login");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [loginCreds, setLoginCreds] = useState({ email: "", password: "" });
+
+  const syncBackend = async () => {
+    try {
+      const healthy = await api.checkHealth();
+      if (!healthy) {
+        setBackendStatus("offline");
+        return;
+      }
+      setBackendStatus("connected");
+
+      // Sync authenticated user profile
+      const token = getToken();
+      if (token) {
+        try {
+          const userRes = await api.getMe();
+          if (userRes.success && userRes.user) {
+            setProfile((current) => ({
+              ...current,
+              ...userRes.user,
+              demo: false,
+            }));
+          }
+        } catch {
+          removeToken();
+        }
+      }
+
+      // Fetch live donations from MongoDB
+      try {
+        const donRes = await api.getDonations();
+        if (donRes.success && donRes.donations && donRes.donations.length > 0) {
+          setDonations(donRes.donations);
+        }
+      } catch (err) {
+        console.warn("Donation sync error:", err.message);
+      }
+    } catch {
+      setBackendStatus("offline");
+    }
+  };
+
+  useEffect(() => {
+    syncBackend();
+  }, []);
+
   useEffect(() => {
     if (!initialRole) return;
     setProfile((current) => ({
@@ -93,7 +150,8 @@ export default function App({
   const donorDonations = donations.filter(
     (item) =>
       item.owner === profile.name ||
-      (profile.demo && item.owner === "demo-donor"),
+      (profile.demo && item.owner === "demo-donor") ||
+      (profile.demo && item.owner === "Alex Morgan"),
   );
   const delivered = donorDonations.filter(
     (item) => item.status === "Delivered",
@@ -129,7 +187,14 @@ export default function App({
     setSimulating(false);
     setModal("tracking");
   };
-  const reserve = (item) => {
+  const reserve = async (item) => {
+    try {
+      if (backendStatus === "connected") {
+        await api.reserveDonation(item.id, profile.name);
+      }
+    } catch (err) {
+      console.warn("Reserve error:", err.message);
+    }
     setDonations((items) =>
       items.map((entry) =>
         entry.id === item.id
@@ -140,7 +205,14 @@ export default function App({
     notify("Donation reserved. Your pickup is ready to coordinate.");
     setModal(null);
   };
-  const completePickup = () => {
+  const completePickup = async () => {
+    try {
+      if (backendStatus === "connected" && selected) {
+        await api.completeDonation(selected.id);
+      }
+    } catch (err) {
+      console.warn("Complete pickup error:", err.message);
+    }
     setDonations((items) =>
       items.map((item) =>
         item.id === selected.id ? { ...item, status: "Delivered" } : item,
@@ -153,6 +225,153 @@ export default function App({
         : "Delivery verified! 120 kindness points added to the donor.",
     );
   };
+  const handleRelease = async (item) => {
+    try {
+      if (backendStatus === "connected") {
+        await api.releaseDonation(item.id);
+      }
+    } catch (err) {
+      console.warn("Release error:", err.message);
+    }
+    setDonations((items) =>
+      items.map((entry) =>
+        entry.id === item.id && entry.ngo === profile.name
+          ? { ...entry, status: "Available", ngo: "" }
+          : entry,
+      ),
+    );
+    notify("Reservation released. The donation is available again.");
+  };
+
+  const handleSwitchWorkspace = async (targetRole) => {
+    const nextRole = targetRole || (isNgo ? "donor" : "ngo");
+    try {
+      if (backendStatus === "connected" && getToken()) {
+        const res = await api.switchRole(nextRole);
+        if (res.success && res.user) {
+          setProfile((curr) => ({
+            ...curr,
+            role: res.user.role,
+            name: res.user.name,
+          }));
+        }
+      } else {
+        setProfile((current) => ({
+          ...current,
+          role: nextRole,
+          name: current.demo
+            ? nextRole === "ngo"
+              ? "Robin Hood Army"
+              : "Alex Morgan"
+            : current.name,
+        }));
+      }
+      notify(`Switched to ${nextRole === "ngo" ? "NGO" : "Donor"} workspace.`);
+    } catch {
+      setProfile((current) => ({
+        ...current,
+        role: nextRole,
+      }));
+      notify(`Switched to ${nextRole === "ngo" ? "NGO" : "Donor"} workspace.`);
+    }
+    setView("Overview");
+  };
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    setAuthLoading(true);
+    setAuthError("");
+    const form = new FormData(event.currentTarget);
+    const email = form.get("email");
+    const password = form.get("password");
+
+    try {
+      if (backendStatus !== "connected") {
+        throw new Error(
+          "Backend server is offline. Please run 'npm run backend' to connect with MongoDB.",
+        );
+      }
+      const res = await api.login({ email, password });
+      if (res.success && res.token) {
+        setToken(res.token);
+        setProfile({
+          ...res.user,
+          demo: false,
+        });
+        setModal(null);
+        notify(res.message || `Welcome back, ${res.user.name}!`);
+        syncBackend();
+      } else {
+        setAuthError(res.message || "Failed to log in.");
+      }
+    } catch (err) {
+      setAuthError(err.message || "Invalid email or password.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleRegister(event) {
+    event.preventDefault();
+    setAuthLoading(true);
+    setAuthError("");
+    const form = new FormData(event.currentTarget);
+    const name = form.get("name").trim();
+    const email = form.get("email").trim();
+    const password = form.get("password");
+    const role = form.get("role") || "donor";
+    const location = form.get("location").trim();
+
+    try {
+      if (backendStatus !== "connected") {
+        setProfile({
+          name,
+          email,
+          role,
+          location,
+          demo: false,
+        });
+        setModal(null);
+        notify("Local profile created. (Start backend server to sync to MongoDB)");
+        return;
+      }
+      const res = await api.register({
+        name,
+        email,
+        password,
+        role,
+        location,
+      });
+      if (res.success && res.token) {
+        setToken(res.token);
+        setProfile({
+          ...res.user,
+          demo: false,
+        });
+        setModal(null);
+        notify(res.message || "Account registered in MongoDB!");
+        syncBackend();
+      } else {
+        setAuthError(res.message || "Failed to create account.");
+      }
+    } catch (err) {
+      setAuthError(err.message || "Failed to create account.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  function handleLogout() {
+    removeToken();
+    setProfile({
+      name: "Alex Morgan",
+      role: "donor",
+      location: "Noida, Uttar Pradesh",
+      demo: true,
+    });
+    setModal(null);
+    notify("Logged out successfully.");
+  }
   const navItems = [
     { name: "Overview", icon: LayoutDashboard },
     {
@@ -178,7 +397,7 @@ export default function App({
     (item) => item.status === "Pickup scheduled",
   );
 
-  function saveDonation(event) {
+  async function saveDonation(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const categoryValue = form.get("category");
@@ -186,7 +405,6 @@ export default function App({
       (item) => item.category === categoryValue,
     );
     const newItem = {
-      id: `KR-${Date.now().toString().slice(-6)}`,
       title: form.get("title").trim(),
       category: categoryValue,
       quantity: form.get("quantity").trim(),
@@ -205,26 +423,69 @@ export default function App({
       image: reference?.image || imageFallback,
       owner: profile.name,
     };
-    setDonations((items) => [newItem, ...items]);
+
+    try {
+      if (backendStatus === "connected") {
+        const res = await api.createDonation(newItem);
+        if (res.success && res.donation) {
+          setDonations((items) => [res.donation, ...items]);
+          notify("Donation posted to MongoDB! A little kindness is on its way.");
+        } else {
+          setDonations((items) => [
+            { id: `KR-${Date.now().toString().slice(-6)}`, ...newItem },
+            ...items,
+          ]);
+          notify("Your donation is live.");
+        }
+      } else {
+        setDonations((items) => [
+          { id: `KR-${Date.now().toString().slice(-6)}`, ...newItem },
+          ...items,
+        ]);
+        notify("Your donation is live.");
+      }
+    } catch (err) {
+      console.warn("Save donation error:", err.message);
+      setDonations((items) => [
+        { id: `KR-${Date.now().toString().slice(-6)}`, ...newItem },
+        ...items,
+      ]);
+      notify("Your donation is live.");
+    }
+
     setModal(null);
     setView("My donations");
     setCategory("All items");
-    notify("Your donation is live. A little kindness is on its way!");
   }
 
-  function saveProfile(event) {
+  async function saveProfile(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setProfile({
-      name: form.get("name").trim(),
-      email: form.get("email"),
-      role: form.get("role"),
-      location: form.get("location").trim(),
-      demo: false,
-    });
-    setView("Overview");
+    const name = form.get("name").trim();
+    const email = form.get("email")?.trim();
+    const role = form.get("role");
+    const location = form.get("location").trim();
+
+    try {
+      if (backendStatus === "connected" && getToken()) {
+        const res = await api.updateProfile({ name, location, role });
+        if (res.success && res.user) {
+          setProfile((curr) => ({ ...curr, ...res.user }));
+        }
+      } else {
+        setProfile({
+          name,
+          email,
+          role,
+          location,
+          demo: false,
+        });
+      }
+      notify("Profile updated successfully.");
+    } catch {
+      notify("Profile updated.");
+    }
     setModal(null);
-    notify("Your local profile is ready. Welcome to KindRoute!");
   }
 
   function downloadCertificate() {
@@ -248,23 +509,20 @@ export default function App({
           profile={profile}
           donations={donations}
           onHome={onHome}
-          onAccount={() => setModal("register")}
-          onSettings={() => setModal("settings")}
+          onAccount={() => {
+            setAuthTab("settings");
+            setModal("register");
+          }}
+          onSettings={() => {
+            setAuthTab("settings");
+            setModal("settings");
+          }}
           onDetails={(item) => {
             setSelected(item);
             setModal("detail");
           }}
           onTrack={openTrack}
-          onRelease={(item) => {
-            setDonations((items) =>
-              items.map((entry) =>
-                entry.id === item.id && entry.ngo === profile.name
-                  ? { ...entry, status: "Available", ngo: "" }
-                  : entry,
-              ),
-            );
-            notify("Reservation released. The donation is available again.");
-          }}
+          onRelease={handleRelease}
         />
       ) : (
         <>
@@ -283,7 +541,11 @@ export default function App({
               </button>
             </div>
             <div className="px-6">
-              <div className="workspace-switch">
+              <div
+                className="workspace-switch cursor-pointer hover:bg-forest/5 transition-colors"
+                title="Click to switch workspace"
+                onClick={() => handleSwitchWorkspace()}
+              >
                 <span className="rounded-lg bg-white p-2 text-forest">
                   <Heart size={17} />
                 </span>
@@ -292,7 +554,7 @@ export default function App({
                     {isNgo ? "NGO workspace" : "Donor workspace"}
                   </strong>
                   <span className="text-[13px] text-muted">
-                    A space for your kindness
+                    Click to switch workspace
                   </span>
                 </div>
                 <ChevronDown size={14} />
@@ -332,9 +594,15 @@ export default function App({
                 <CircleHelp size={18} />
                 Help & getting started
               </button>
-              <button className="nav-item" onClick={() => setModal("settings")}>
+              <button
+                className="nav-item"
+                onClick={() => {
+                  setAuthTab("settings");
+                  setModal("settings");
+                }}
+              >
                 <Settings size={18} />
-                Settings
+                Settings & Switch
               </button>
               <div className="mt-5 border-t border-line pt-5 flex items-center gap-3 px-2">
                 <span className="avatar">
@@ -353,9 +621,12 @@ export default function App({
                   </span>
                 </div>
                 <button
-                  title="Switch account"
-                  className="text-muted"
-                  onClick={() => setModal("register")}
+                  title={getToken() ? "Settings & Logout" : "Sign In / Register"}
+                  className="text-muted hover:text-ink transition-colors"
+                  onClick={() => {
+                    setAuthTab(getToken() ? "settings" : "login");
+                    setModal("register");
+                  }}
                 >
                   <LogOut size={16} />
                 </button>
@@ -379,9 +650,36 @@ export default function App({
                   A little kindness, every day
                 </span>
               </div>
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <button
-                  onClick={() => setModal("settings")}
+                  onClick={() => {
+                    setAuthTab(getToken() ? "settings" : "login");
+                    setModal("register");
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    backendStatus === "connected"
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                      : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                  }`}
+                  title={
+                    backendStatus === "connected"
+                      ? "MongoDB Backend is connected!"
+                      : "Backend offline. Click to view status or sign in."
+                  }
+                >
+                  <Database size={12} />
+                  <span>
+                    {backendStatus === "connected"
+                      ? "MongoDB Live"
+                      : "Backend Offline"}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setAuthTab("settings");
+                    setModal("settings");
+                  }}
                   className="hidden sm:flex items-center gap-1.5 text-xs text-muted"
                 >
                   <MapPin size={14} />
@@ -944,100 +1242,353 @@ export default function App({
       {(modal === "register" || modal === "settings") && (
         <Modal
           title={
-            modal === "settings"
-              ? "Your KindRoute profile"
-              : "There’s a place for you here"
+            authTab === "login"
+              ? "Sign in to KindRoute"
+              : authTab === "register"
+                ? "Join the KindRoute Network"
+                : "Profile & Workspace"
           }
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setModal(null);
+            setAuthError("");
+          }}
         >
-          <p className="text-xs text-muted mb-5">
-            Create a browser-local profile, or switch workspaces to explore.
-          </p>
-          <form className="space-y-4" onSubmit={saveProfile}>
-            <div className="grid grid-cols-2 gap-3">
-              {["donor", "ngo"].map((role) => (
-                <label key={`${profile.role}-${role}`} className="role-choice">
-                  <input
-                    type="radio"
-                    name="role"
-                    value={role}
-                    defaultChecked={profile.role === role}
-                  />
-                  <span>
-                    {role === "donor" ? (
-                      <HeartHandshake size={25} />
-                    ) : (
-                      <Users size={25} />
-                    )}
-                    <strong>
-                      {role === "donor"
-                        ? "I want to give"
-                        : "I represent an NGO"}
-                    </strong>
-                    <small>
-                      {role === "donor"
-                        ? "Share something good"
-                        : "Connect it to a need"}
-                    </small>
-                  </span>
-                </label>
-              ))}
-            </div>
-            <label className="field">
-              Your name / organisation
-              <input
-                name="name"
-                required
-                defaultValue={profile.demo ? "" : profile.name}
-                placeholder="Your name or NGO name"
-                maxLength={60}
-              />
-            </label>
-            <label className="field">
-              Email
-              <input
-                name="email"
-                type="email"
-                required
-                defaultValue={profile.email || ""}
-                placeholder="you@example.com"
-              />
-            </label>
-            <label className="field">
-              Your city / area
-              <input
-                name="location"
-                required
-                defaultValue={profile.location}
-                maxLength={120}
-              />
-            </label>
-            <button className="button-primary w-full justify-center">
-              {modal === "settings" ? "Save profile" : "Create local profile"}
-              <ArrowRight size={15} />
+          {/* Tabs header */}
+          <div className="flex border-b border-line mb-5 -mt-2">
+            <button
+              type="button"
+              className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all ${
+                authTab === "login"
+                  ? "border-forest text-forest"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+              onClick={() => {
+                setAuthTab("login");
+                setAuthError("");
+              }}
+            >
+              Sign In
             </button>
-            <p className="text-center text-[13px] text-muted">
-              Local demo only. No account is created on a server.
-              <br />
-              NGO verification and authentication require a backend.
-            </p>
-          </form>
-          <button
-            className="mt-5 text-xs text-forest underline underline-offset-4"
-            onClick={() => {
-              setProfile({
-                name: isNgo ? "Alex Morgan" : "Robin Hood Army",
-                role: isNgo ? "donor" : "ngo",
-                location: "Noida, Uttar Pradesh",
-                demo: true,
-              });
-              setModal(null);
-              setView("Overview");
-              notify("Demo workspace switched.");
-            }}
+            <button
+              type="button"
+              className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all ${
+                authTab === "register"
+                  ? "border-forest text-forest"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+              onClick={() => {
+                setAuthTab("register");
+                setAuthError("");
+              }}
+            >
+              Create Account
+            </button>
+            <button
+              type="button"
+              className={`pb-2.5 px-3 text-sm font-semibold border-b-2 transition-all ${
+                authTab === "settings"
+                  ? "border-forest text-forest"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+              onClick={() => {
+                setAuthTab("settings");
+                setAuthError("");
+              }}
+            >
+              Workspace & Switch
+            </button>
+          </div>
+
+          {/* Backend Status banner */}
+          <div
+            className={`p-3 rounded-lg text-xs flex items-center justify-between mb-4 ${
+              backendStatus === "connected"
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-amber-50 text-amber-800 border border-amber-200"
+            }`}
           >
-            Try the {isNgo ? "donor" : "NGO"} demo instead
-          </button>
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  backendStatus === "connected"
+                    ? "bg-emerald-600 animate-pulse"
+                    : "bg-amber-500"
+                }`}
+              />
+              <span>
+                {backendStatus === "connected"
+                  ? "MongoDB Backend is connected & live"
+                  : "Backend offline (Run 'npm run backend' to connect MongoDB)"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={syncBackend}
+              className="underline text-xs flex items-center gap-1 hover:opacity-80"
+              title="Refresh connection status"
+            >
+              <RefreshCw size={12} />
+              Refresh
+            </button>
+          </div>
+
+          {authError && (
+            <div className="p-3 mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+              {authError}
+            </div>
+          )}
+
+          {/* Tab 1: Login */}
+          {authTab === "login" && (
+            <form className="space-y-4" onSubmit={handleLogin}>
+              <p className="text-xs text-muted mb-2">
+                Log in with your registered MongoDB account to sync your donations and collections.
+              </p>
+              <label className="field">
+                Email Address
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  value={loginCreds.email}
+                  onChange={(e) =>
+                    setLoginCreds({ ...loginCreds, email: e.target.value })
+                  }
+                  placeholder="you@example.com"
+                />
+              </label>
+              <label className="field">
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  value={loginCreds.password}
+                  onChange={(e) =>
+                    setLoginCreds({ ...loginCreds, password: e.target.value })
+                  }
+                  placeholder="••••••••"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="button-primary w-full justify-center"
+              >
+                {authLoading ? "Logging in..." : "Sign In to Account"}
+                <ArrowRight size={15} />
+              </button>
+
+              <div className="pt-3 border-t border-line text-xs text-muted">
+                <span className="block mb-2 font-medium text-ink">
+                  Or quick sign-in with seeded demo accounts:
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className="p-2 border border-line rounded text-left hover:bg-forest/5 text-ink transition-colors"
+                    onClick={() =>
+                      setLoginCreds({
+                        email: "alex@kindroute.org",
+                        password: "password123",
+                      })
+                    }
+                  >
+                    <strong>Alex Morgan</strong>
+                    <span className="block text-[11px] text-muted">
+                      Donor Workspace
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 border border-line rounded text-left hover:bg-forest/5 text-ink transition-colors"
+                    onClick={() =>
+                      setLoginCreds({
+                        email: "robinhood@kindroute.org",
+                        password: "password123",
+                      })
+                    }
+                  >
+                    <strong>Robin Hood Army</strong>
+                    <span className="block text-[11px] text-muted">
+                      NGO Workspace
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* Tab 2: Create Account / Register */}
+          {authTab === "register" && (
+            <form className="space-y-4" onSubmit={handleRegister}>
+              <p className="text-xs text-muted mb-2">
+                Choose your role and register an account in MongoDB.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {["donor", "ngo"].map((role) => (
+                  <label
+                    key={`reg-${role}`}
+                    className="role-choice cursor-pointer"
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={role}
+                      defaultChecked={role === "donor"}
+                    />
+                    <span>
+                      {role === "donor" ? (
+                        <HeartHandshake size={23} />
+                      ) : (
+                        <Users size={23} />
+                      )}
+                      <strong>
+                        {role === "donor"
+                          ? "I want to give"
+                          : "I represent an NGO"}
+                      </strong>
+                      <small>
+                        {role === "donor"
+                          ? "Donor workspace"
+                          : "NGO collection desk"}
+                      </small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <label className="field">
+                Full Name / NGO Organization Name
+                <input
+                  name="name"
+                  required
+                  placeholder="e.g. Hope Foundation or Sarah Jenkins"
+                  maxLength={60}
+                />
+              </label>
+              <label className="field">
+                Email Address
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="name@domain.com"
+                />
+              </label>
+              <label className="field">
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  placeholder="At least 6 characters"
+                  minLength={6}
+                />
+              </label>
+              <label className="field">
+                City / Area Location
+                <input
+                  name="location"
+                  required
+                  defaultValue={profile.location || "Noida, Uttar Pradesh"}
+                  placeholder="e.g. Sector 62, Noida"
+                  maxLength={120}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="button-primary w-full justify-center"
+              >
+                {authLoading ? "Creating account..." : "Create MongoDB Account"}
+                <ArrowRight size={15} />
+              </button>
+            </form>
+          )}
+
+          {/* Tab 3: Settings & Workspace Switch */}
+          {authTab === "settings" && (
+            <div className="space-y-5">
+              <div className="p-4 rounded-xl bg-forest/5 border border-forest/15">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-semibold tracking-wider text-muted uppercase">
+                      Active Workspace
+                    </span>
+                    <h4 className="text-base font-semibold text-ink mt-0.5">
+                      {isNgo ? "NGO Workspace" : "Donor Workspace"}
+                    </h4>
+                    <p className="text-xs text-muted mt-1">
+                      {isNgo
+                        ? "Currently exploring available donations and scheduling pickups."
+                        : "Currently listing donations and tracking deliveries."}
+                    </p>
+                  </div>
+                  <span className="p-3 bg-white rounded-lg text-forest shadow-sm">
+                    {isNgo ? <Users size={22} /> : <HeartHandshake size={22} />}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="button-primary mt-4 w-full justify-center"
+                  onClick={() => {
+                    handleSwitchWorkspace();
+                    setModal(null);
+                  }}
+                >
+                  <RefreshCw size={15} />
+                  Switch to {isNgo ? "Donor Workspace" : "NGO Workspace"}
+                </button>
+              </div>
+
+              <form className="space-y-4 pt-1" onSubmit={saveProfile}>
+                <h4 className="text-sm font-semibold text-ink">
+                  Update Profile Details
+                </h4>
+                <label className="field">
+                  Name / Organisation Name
+                  <input
+                    name="name"
+                    required
+                    defaultValue={profile.name}
+                    maxLength={60}
+                  />
+                </label>
+                <label className="field">
+                  Location
+                  <input
+                    name="location"
+                    required
+                    defaultValue={profile.location}
+                    maxLength={120}
+                  />
+                </label>
+                <input type="hidden" name="role" value={profile.role} />
+                <button
+                  type="submit"
+                  className="button-outline w-full justify-center"
+                >
+                  Save Profile Changes
+                </button>
+              </form>
+
+              {getToken() && (
+                <div className="pt-3 border-t border-line flex items-center justify-between">
+                  <span className="text-xs text-muted">
+                    Signed in as {profile.email || profile.name}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-red-600 hover:underline flex items-center gap-1 font-medium"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={13} />
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </Modal>
       )}
 

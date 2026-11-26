@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1240" viewBox="0 0 1800 1240">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="3" dy="5" stdDeviation="4" flood-color="#19372b" flood-opacity=".18"/></filter>
+    <linearGradient id="entity" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#d6edd1"/><stop offset="1" stop-color="#add5a6"/></linearGradient>
+    <linearGradient id="relation" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#d7e0ff"/><stop offset="1" stop-color="#b2c3f7"/></linearGradient>
+    <linearGradient id="attribute" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#fff1f6"/><stop offset="1" stop-color="#f6dce9"/></linearGradient>
+    <style>
+      .entity{fill:url(#entity);stroke:#347345;stroke-width:3;filter:url(#shadow)}
+      .entity-text{font:700 24px Georgia,serif;fill:#183c29;text-anchor:middle}
+      .relation{fill:url(#relation);stroke:#4c66b3;stroke-width:3;filter:url(#shadow)}
+      .relation-text{font:italic 20px Georgia,serif;fill:#25356c;text-anchor:middle}
+      .attribute{fill:url(#attribute);stroke:#c681a3;stroke-width:2.5;filter:url(#shadow)}
+      .attribute-text{font:18px Arial,sans-serif;fill:#352332;text-anchor:middle}
+      .pk{font-weight:700;text-decoration:underline}
+      .connector{stroke:#5f6d68;stroke-width:2.4;fill:none}
+      .cardinality{font:15px Arial,sans-serif;fill:#53605b;font-weight:600}
+      .title{font:700 32px Arial,sans-serif;fill:#183c29}
+      .subtitle{font:16px Arial,sans-serif;fill:#6a7c70}
+    </style>
+  </defs>
+
+  <rect width="1800" height="1240" fill="#fbfcf8"/>
+  <text x="900" y="48" class="title" text-anchor="middle">KindRoute — Conceptual ER Diagram</text>
+  <text x="900" y="76" class="subtitle" text-anchor="middle">Chen notation · rectangles = entities · diamonds = relationships · ovals = attributes</text>
+
+  <!-- connectors behind shapes -->
+  <g class="connector">
+    <path d="M230 250 L330 250"/><path d="M510 250 L610 250"/><path d="M790 250 L900 250"/>
+    <path d="M1050 250 L1170 250"/><path d="M1350 250 L1510 250"/>
+    <path d="M700 340 L700 430"/><path d="M790 495 L900 495"/><path d="M1050 495 L1190 495"/>
+    <path d="M1390 495 L1550 495"/><path d="M520 800 L650 800"/><path d="M830 800 L950 800"/>
+    <path d="M1090 800 L1220 800"/><path d="M1380 800 L1530 800"/>
+    <path d="M1460 350 L1460 205"/><path d="M1460 350 L1460 495"/>
+    <path d="M700 870 L700 1000"/><path d="M1010 870 L1010 1000"/>
+    <path d="M1570 870 L1570 1000"/>
+  </g>
+
+  <!-- top flow: donor to donation to NGO -->
+  <rect x="65" y="205" width="165" height="78" rx="5" class="entity"/><text x="147" y="253" class="entity-text">DONOR</text>
+  <polygon points="420,205 510,244 420,283 330,244" class="relation"/><text x="420" y="251" class="relation-text">creates</text>
+  <rect x="610" y="205" width="180" height="78" rx="5" class="entity"/><text x="700" y="253" class="entity-text">DONATION</text>
+  <polygon points="990,205 1080,244 990,283 900,244" class="relation"/><text x="990" y="251" class="relation-text">classified as</text>
+  <rect x="1170" y="205" width="180" height="78" rx="5" class="entity"/><text x="1260" y="253" class="entity-text">CATEGORY</text>
+  <polygon points="1590,205 1680,244 1590,283 1500,244" class="relation"/><text x="1590" y="251" class="relation-text">reserves</text>
+
+  <!-- NGO and reservation row -->
+  <rect x="1510" y="330" width="190" height="78" rx="5" class="entity"/><text x="1605" y="378" class="entity-text">NGO</text>
+  <polygon points="790,455 880,494 790,533 700,494" class="relation"/><text x="790" y="501" class="relation-text">receives</text>
+  <rect x="900" y="455" width="150" height="78" rx="5" class="entity"/><text x="975" y="503" class="entity-text">RESERVATION</text>
+  <polygon points="1280,455 1370,494 1280,533 1190,494" class="relation"/><text x="1280" y="501" class="relation-text">made by</text>
+  <path d="M1350 244 L1605 330" class="connector"/><text x="1440" y="280" class="cardinality">1 : N</text>
+
+  <!-- lower pickup flow -->
+  <rect x="650" y="760" width="180" height="78" rx="5" class="entity"/><text x="740" y="808" class="entity-text">PICKUP</text>
+  <polygon points="920,760 1010,799 920,838 830,799" class="relation"/><text x="920" y="806" class="relation-text">creates</text>
+  <rect x="1090" y="760" width="190" height="78" rx="5" class="entity"/><text x="1185" y="808" class="entity-text">PICKUP EVENT</text>
+  <polygon points="1460,760 1550,799 1460,838 1370,799" class="relation"/><text x="1460" y="806" class="relation-text">tracked by</text>
+  <rect x="1530" y="760" width="190" height="78" rx="5" class="entity"/><text x="1625" y="808" class="entity-text">VOLUNTEER</text>
+  <path d="M975 533 L740 760" class="connector"/><text x="820" y="650" class="cardinality">1 : 1</text>
+
+  <!-- support entities -->
+  <rect x="390" y="760" width="130" height="78" rx="5" class="entity"/><text x="455" y="808" class="entity-text">USER</text>
+  <polygon points="600,760 690,799 600,838 510,799" class="relation"/><text x="600" y="806" class="relation-text">handles</text>
+  <path d="M520 799 L510 799" class="connector"/>
+
+  <rect x="580" y="1000" width="210" height="78" rx="5" class="entity"/><text x="685" y="1048" class="entity-text">REWARD TRANSACTION</text>
+  <polygon points="880,1000 970,1039 880,1078 790,1039" class="relation"/><text x="880" y="1046" class="relation-text">generates</text>
+  <rect x="1060" y="1000" width="160" height="78" rx="5" class="entity"/><text x="1140" y="1048" class="entity-text">CERTIFICATE</text>
+  <path d="M740 838 L685 1000" class="connector"/><path d="M830 799 L880 1000" class="connector"/><path d="M1010 838 L1140 1000" class="connector"/>
+
+  <rect x="120" y="760" width="210" height="78" rx="5" class="entity"/><text x="225" y="808" class="entity-text">REQUIREMENT</text>
+  <polygon points="420,760 510,799 420,838 330,799" class="relation"/><text x="420" y="806" class="relation-text">posted by</text>
+  <path d="M1510 370 L510 799" class="connector"/><text x="1030" y="560" class="cardinality">1 : N</text>
+
+  <!-- donation attributes -->
+  <ellipse cx="585" cy="120" rx="106" ry="35" class="attribute"/><text x="585" y="127" class="attribute-text pk">donation_id</text><path d="M650 205 L600 155" class="connector"/>
+  <ellipse cx="760" cy="120" rx="83" ry="35" class="attribute"/><text x="760" y="127" class="attribute-text">title</text><path d="M730 205 L755 155" class="connector"/>
+  <ellipse cx="920" cy="120" rx="95" ry="35" class="attribute"/><text x="920" y="127" class="attribute-text">quantity</text><path d="M780 205 L890 155" class="connector"/>
+  <ellipse cx="1080" cy="120" rx="88" ry="35" class="attribute"/><text x="1080" y="127" class="attribute-text">status</text><path d="M1060 205 L1080 155" class="connector"/>
+
+  <!-- donor attributes -->
+  <ellipse cx="80" cy="340" rx="90" ry="35" class="attribute"/><text x="80" y="347" class="attribute-text pk">donor_id</text><path d="M135 283 L100 305" class="connector"/>
+  <ellipse cx="270" cy="340" rx="82" ry="35" class="attribute"/><text x="270" y="347" class="attribute-text">donor_type</text><path d="M185 283 L250 305" class="connector"/>
+
+  <!-- ngo attributes -->
+  <ellipse cx="1530" cy="120" rx="76" ry="35" class="attribute"/><text x="1530" y="127" class="attribute-text pk">ngo_id</text><path d="M1570 330 L1540 155" class="connector"/>
+  <ellipse cx="1700" cy="120" rx="90" ry="35" class="attribute"/><text x="1700" y="127" class="attribute-text">org_name</text><path d="M1640 330 L1690 155" class="connector"/>
+  <ellipse cx="1730" cy="495" rx="88" ry="35" class="attribute"/><text x="1730" y="502" class="attribute-text">city</text><path d="M1700 370 L1690 495" class="connector"/>
+
+  <!-- requirement attributes -->
+  <ellipse cx="140" cy="930" rx="105" ry="35" class="attribute"/><text x="140" y="937" class="attribute-text pk">requirement_id</text><path d="M200 838 L160 895" class="connector"/>
+  <ellipse cx="350" cy="930" rx="92" ry="35" class="attribute"/><text x="350" y="937" class="attribute-text">priority</text><path d="M260 838 L330 895" class="connector"/>
+
+  <!-- pickup attributes -->
+  <ellipse cx="570" cy="930" rx="85" ry="35" class="attribute"/><text x="570" y="937" class="attribute-text pk">pickup_id</text><path d="M690 838 L610 895" class="connector"/>
+  <ellipse cx="770" cy="930" rx="95" ry="35" class="attribute"/><text x="770" y="937" class="attribute-text">pickup_status</text><path d="M780 838 L780 895" class="connector"/>
+  <ellipse cx="1030" cy="930" rx="92" ry="35" class="attribute"/><text x="1030" y="937" class="attribute-text">scheduled_date</text><path d="M1120 838 L1050 895" class="connector"/>
+  <ellipse cx="1250" cy="930" rx="85" ry="35" class="attribute"/><text x="1250" y="937" class="attribute-text">route_distance</text><path d="M1210 838 L1240 895" class="connector"/>
+
+  <!-- reservation and event attributes -->
+  <ellipse cx="880" cy="610" rx="116" ry="35" class="attribute"/><text x="880" y="617" class="attribute-text pk">reservation_id</text><path d="M960 533 L900 575" class="connector"/>
+  <ellipse cx="1120" cy="610" rx="95" ry="35" class="attribute"/><text x="1120" y="617" class="attribute-text">reserved_at</text><path d="M1010 533 L1080 575" class="connector"/>
+  <ellipse cx="1370" cy="930" rx="90" ry="35" class="attribute"/><text x="1370" y="937" class="attribute-text pk">event_id</text><path d="M1170 838 L1320 895" class="connector"/>
+  <ellipse cx="1530" cy="930" rx="90" ry="35" class="attribute"/><text x="1530" y="937" class="attribute-text">event_type</text><path d="M1240 838 L1490 895" class="connector"/>
+
+  <!-- user/volunteer attributes -->
+  <ellipse cx="230" cy="610" rx="78" ry="35" class="attribute"/><text x="230" y="617" class="attribute-text pk">user_id</text><path d="M455 760 L280 645" class="connector"/>
+  <ellipse cx="400" cy="610" rx="78" ry="35" class="attribute"/><text x="400" y="617" class="attribute-text">name</text><path d="M455 760 L420 645" class="connector"/>
+
+  <!-- legend -->
+  <rect x="1420" y="1100" width="300" height="95" rx="8" fill="#fff" stroke="#dfe6db"/>
+  <rect x="1440" y="1120" width="55" height="26" class="entity"/><text x="1510" y="1140" class="subtitle">Entity</text>
+  <polygon points="1440,1170 1468,1157 1496,1170 1468,1183" class="relation"/><text x="1510" y="1176" class="subtitle">Relationship</text>
+</svg>
