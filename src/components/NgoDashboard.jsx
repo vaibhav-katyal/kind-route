@@ -26,7 +26,7 @@ import { categories } from "../data";
 import Brand from "./Brand";
 import Badge from "./Badge";
 import PickupMap from "./PickupMap";
-import { getCurrentLocation } from "../utils/location";
+import LocationPicker from "./LocationPicker";
 
 const navigation = [
   { name: "Overview", icon: LayoutDashboard },
@@ -47,7 +47,7 @@ const pageCopy = {
   ],
   "Requested & Approved": [
     "Requested & Approved Collections",
-    "Coordinate collections, start delivery, and track live routes to your centre.",
+    "Coordinate collections, confirm deliveries, and track live routes to your centre.",
   ],
   "Collection history": [
     "Collected, confirmed, recorded.",
@@ -93,7 +93,6 @@ export default function NgoDashboard({
   const [needDetail, setNeedDetail] = useState("");
   const [needLocation, setNeedLocation] = useState(profile.location || "");
   const [needCoordinates, setNeedCoordinates] = useState([28.627, 77.371]);
-  const [locatingNeed, setLocatingNeed] = useState(false);
 
   // Categorize donations
   const available = donations.filter(
@@ -437,15 +436,6 @@ export default function NgoDashboard({
                         {nextPickup.date}
                       </div>
                       <div className="ngo-queue-actions">
-                        {nextPickup.status === "Approved" && (
-                          <button
-                            className="button-primary cursor-pointer"
-                            onClick={() => onStartDelivery && onStartDelivery(nextPickup)}
-                          >
-                            <Truck size={16} />
-                            Start Delivery
-                          </button>
-                        )}
                         {nextPickup.status === "In transit" && (
                           <button
                             className="button-primary cursor-pointer"
@@ -670,17 +660,6 @@ export default function NgoDashboard({
                             <span className="ngo-pending-badge">
                               <Clock3 size={12} /> Pending Approval
                             </span>
-                          )}
-
-                          {isApprovedForUs && (
-                            <div className="flex items-center gap-2">
-                              <button
-                                className="button-primary text-xs py-1.5 px-3 cursor-pointer flex items-center gap-1"
-                                onClick={() => onStartDelivery && onStartDelivery(item)}
-                              >
-                                <Truck size={14} /> Start Delivery
-                              </button>
-                            </div>
                           )}
 
                           {isInTransit && (
@@ -931,38 +910,15 @@ export default function NgoDashboard({
                   </label>
                   <span className="text-xs text-muted">Accurate pickup/delivery point</span>
                 </div>
-                <div className="p-3 rounded-lg border border-line bg-white space-y-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setLocatingNeed(true);
-                      try {
-                        const loc = await getCurrentLocation();
-                        setNeedLocation(loc.formattedLocation);
-                        if (loc.coordinates) setNeedCoordinates(loc.coordinates);
-                      } finally {
-                        setLocatingNeed(false);
-                      }
-                    }}
-                    disabled={locatingNeed}
-                    className="w-full py-2 px-3 rounded bg-forest/5 hover:bg-forest/10 text-forest border border-forest/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    {locatingNeed ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" /> Detecting location…
-                      </>
-                    ) : (
-                      <>
-                        <MapPin size={14} /> Use NGO current location
-                      </>
-                    )}
-                  </button>
-                  {needLocation && (
-                    <div className="text-xs text-forest bg-forest/5 p-2 rounded border border-forest/15">
-                      ✓ Location: {needLocation}
-                    </div>
-                  )}
-                </div>
+                <LocationPicker
+                  location={needLocation}
+                  onLocationChange={setNeedLocation}
+                  onCoordinatesChange={setNeedCoordinates}
+                  detectButtonLabel="Use NGO current location"
+                  redetectButtonLabel="Re-detect NGO location"
+                  statusLabel="Location"
+                  compact
+                />
               </div>
 
               <button

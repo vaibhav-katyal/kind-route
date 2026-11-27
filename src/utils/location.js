@@ -85,3 +85,115 @@ export async function getCurrentLocation() {
     );
   });
 }
+
+function formatNominatimResult(best, fallbackText) {
+  const lat = parseFloat(best.lat);
+  const lon = parseFloat(best.lon);
+  const address = best.address || {};
+  const area =
+    address.suburb ||
+    address.neighbourhood ||
+    address.residential ||
+    address.road ||
+    address.subdistrict;
+  const city =
+    address.city ||
+    address.town ||
+    address.city_district ||
+    address.county ||
+    address.state_district;
+  const state = address.state;
+  const parts = [area, city, state].filter(Boolean);
+  const formatted =
+    parts.length > 0
+      ? parts.join(", ")
+      : best.display_name?.split(",").slice(0, 3).join(",") || fallbackText;
+
+  return {
+    formattedLocation: formatted,
+    coordinates: [lat, lon],
+    raw: best,
+  };
+}
+
+async function queryNominatim(q) {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=${encodeURIComponent(q)}`,
+    {
+      headers: {
+        "Accept-Language": "en",
+      },
+    }
+  );
+  if (!response.ok) {
+    throw new Error("Location lookup service is currently unavailable.");
+  }
+  const results = await response.json();
+  return Array.isArray(results) && results.length > 0 ? results[0] : null;
+}
+
+/**
+ * Forward geocoding for manually entered location strings via OpenStreetMap Nominatim.
+ * Verifies the location exists; if not, falls back to the closest possible matching location.
+ */
+export async function geocodeLocation(query) {
+  const trimmed = (query || "").trim();
+  if (!trimmed) {
+    throw new Error("Please enter a location to look up.");
+  }
+
+  // 1. Try exact query first
+  const exact = await queryNominatim(trimmed);
+  if (exact) {
+    return {
+      ...formatNominatimResult(exact, trimmed),
+      isClosestMatch: false,
+    };
+  }
+
+  // 2. Build candidate fallback queries (broader segments / cleaned terms) for closest possible match
+  const candidates = [];
+  const commaParts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  for (let i = 1; i < commaParts.length; i++) {
+    candidates.push(commaParts.slice(i).join(", "));
+  }
+  for (const part of commaParts) {
+    if (part.length >= 3) candidates.push(part);
+  }
+
+  const words = trimmed
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3);
+
+  for (let i = 1; i < words.length; i++) {
+    candidates.push(words.slice(i).join(" "));
+  }
+  for (let i = words.length - 1; i >= 1; i--) {
+    candidates.push(words.slice(0, i).join(" "));
+  }
+  for (const word of words) {
+    candidates.push(word);
+  }
+
+  const seen = new Set([trimmed.toLowerCase()]);
+  for (const candidate of candidates) {
+    const key = candidate.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const match = await queryNominatim(candidate);
+    if (match) {
+      return {
+        ...formatNominatimResult(match, candidate),
+        isClosestMatch: true,
+      };
+    }
+  }
+
+  throw new Error("No matching location found. Please enter a valid city, area, or address.");
+}

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Brand from "./Brand";
 import api, { setToken } from "../api";
-import { getCurrentLocation } from "../utils/location";
+import LocationPicker from "./LocationPicker";
 
 export default function AuthPage({
   initialMode = "login",
@@ -35,26 +35,7 @@ export default function AuthPage({
   const [coordinates, setCoordinates] = useState([28.627, 77.371]);
 
   const [loading, setLoading] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState("");
   const [error, setError] = useState("");
-
-  // Handle GPS location detection
-  const handleDetectLocation = async () => {
-    setLocating(true);
-    setLocationError("");
-    try {
-      const loc = await getCurrentLocation();
-      setLocation(loc.formattedLocation);
-      if (loc.coordinates) {
-        setCoordinates(loc.coordinates);
-      }
-    } catch (err) {
-      setLocationError(err.message || "Failed to detect location.");
-    } finally {
-      setLocating(false);
-    }
-  };
 
   // Submit Login
   const handleLoginSubmit = async (e) => {
@@ -470,42 +451,12 @@ export default function AuthPage({
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-line bg-white space-y-2.5">
-                    <button
-                      type="button"
-                      onClick={handleDetectLocation}
-                      disabled={locating}
-                      className="w-full py-2.5 px-3.5 rounded-md bg-[#eef4ea] hover:bg-[#e2edd9] text-forest border border-[#cadbc1] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                    >
-                      {locating ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin text-forest" />
-                          Detecting current location…
-                        </>
-                      ) : (
-                        <>
-                          <MapPin size={15} className="text-forest" />
-                          {location ? "Re-detect current location" : "Use current location"}
-                        </>
-                      )}
-                    </button>
-
-                    {location && (
-                      <div className="flex items-start gap-2 pt-1 text-xs text-forest bg-forest/5 p-2.5 rounded border border-forest/15">
-                        <Check size={14} className="shrink-0 mt-0.5 text-forest" />
-                        <div>
-                          <strong className="block text-ink">Detected Location:</strong>
-                          <span className="text-muted leading-relaxed">{location}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {locationError && (
-                      <p className="text-xs text-red-600 pt-1">
-                        {locationError}
-                      </p>
-                    )}
-                  </div>
+                  <LocationPicker
+                    location={location}
+                    onLocationChange={setLocation}
+                    onCoordinatesChange={setCoordinates}
+                    statusLabel="Selected Location"
+                  />
                 </div>
 
                 <button

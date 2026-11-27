@@ -51,7 +51,7 @@ import usePersistentState from "./hooks/usePersistentState";
 import NgoDashboard from "./components/NgoDashboard";
 import DonorOverview from "./components/DonorOverview";
 import api from "./api";
-import { getCurrentLocation } from "./utils/location";
+import LocationPicker from "./components/LocationPicker";
 
 const icons = {
   Food: Utensils,
@@ -84,12 +84,8 @@ export default function App({ currentUser, onLogout, onHome }) {
   // Location detection states for modal
   const [donateLocation, setDonateLocation] = useState(currentUser?.location || "");
   const [donateCoords, setDonateCoords] = useState([28.627, 77.371]);
-  const [locatingDonate, setLocatingDonate] = useState(false);
-  const [donateLocError, setDonateLocError] = useState("");
 
   const [settingsLocation, setSettingsLocation] = useState(currentUser?.location || "");
-  const [locatingSettings, setLocatingSettings] = useState(false);
-  const [settingsLocError, setSettingsLocError] = useState("");
 
   // Fulfill Need Modal States
   const [fulfillPercent, setFulfillPercent] = useState(100);
@@ -98,7 +94,6 @@ export default function App({ currentUser, onLogout, onHome }) {
   const [fulfillLocation, setFulfillLocation] = useState(currentUser?.location || "");
   const [fulfillCoords, setFulfillCoords] = useState([28.627, 77.371]);
   const [fulfillDescription, setFulfillDescription] = useState("");
-  const [locatingFulfill, setLocatingFulfill] = useState(false);
   const [submittingFulfill, setSubmittingFulfill] = useState(false);
 
   useEffect(() => {
@@ -1184,52 +1179,13 @@ export default function App({ currentUser, onLogout, onHome }) {
                 <span className="text-xs text-muted">Accurate pickup location</span>
               </div>
 
-              <div className="p-3 rounded-lg border border-line bg-white space-y-2.5">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLocatingDonate(true);
-                    setDonateLocError("");
-                    try {
-                      const loc = await getCurrentLocation();
-                      setDonateLocation(loc.formattedLocation);
-                      if (loc.coordinates) setDonateCoords(loc.coordinates);
-                    } catch (err) {
-                      setDonateLocError(err.message || "Failed to detect location.");
-                    } finally {
-                      setLocatingDonate(false);
-                    }
-                  }}
-                  disabled={locatingDonate}
-                  className="w-full py-2.5 px-3.5 rounded-md bg-[#eef4ea] hover:bg-[#e2edd9] text-forest border border-[#cadbc1] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  {locatingDonate ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin text-forest" />
-                      Detecting current location…
-                    </>
-                  ) : (
-                    <>
-                      <MapPin size={15} className="text-forest" />
-                      {donateLocation ? "Re-detect current pickup location" : "Use current location"}
-                    </>
-                  )}
-                </button>
-
-                {donateLocation && (
-                  <div className="flex items-start gap-2 pt-1 text-xs text-forest bg-forest/5 p-2.5 rounded border border-forest/15">
-                    <Check size={14} className="shrink-0 mt-0.5 text-forest" />
-                    <div>
-                      <strong className="block text-ink">Pickup Location:</strong>
-                      <span className="text-muted leading-relaxed">{donateLocation}</span>
-                    </div>
-                  </div>
-                )}
-
-                {donateLocError && (
-                  <p className="text-xs text-red-600 pt-1">{donateLocError}</p>
-                )}
-              </div>
+              <LocationPicker
+                location={donateLocation}
+                onLocationChange={setDonateLocation}
+                onCoordinatesChange={setDonateCoords}
+                redetectButtonLabel="Re-detect current pickup location"
+                statusLabel="Pickup Location"
+              />
             </div>
 
             <label className="field">
@@ -1394,38 +1350,15 @@ export default function App({ currentUser, onLogout, onHome }) {
                 </label>
                 <span className="text-xs text-muted">Where should items be collected?</span>
               </div>
-              <div className="p-3 rounded-lg border border-line bg-white space-y-2.5">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLocatingFulfill(true);
-                    try {
-                      const loc = await getCurrentLocation();
-                      setFulfillLocation(loc.formattedLocation);
-                      if (loc.coordinates) setFulfillCoords(loc.coordinates);
-                    } finally {
-                      setLocatingFulfill(false);
-                    }
-                  }}
-                  disabled={locatingFulfill}
-                  className="w-full py-2 px-3 rounded bg-forest/5 hover:bg-forest/10 text-forest border border-forest/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  {locatingFulfill ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" /> Detecting location…
-                    </>
-                  ) : (
-                    <>
-                      <MapPin size={14} /> Use my current location
-                    </>
-                  )}
-                </button>
-                {fulfillLocation && (
-                  <div className="text-xs text-forest bg-forest/5 p-2 rounded border border-forest/15">
-                    ✓ Pickup Location: {fulfillLocation}
-                  </div>
-                )}
-              </div>
+              <LocationPicker
+                location={fulfillLocation}
+                onLocationChange={setFulfillLocation}
+                onCoordinatesChange={setFulfillCoords}
+                detectButtonLabel="Use my current location"
+                redetectButtonLabel="Re-detect current location"
+                statusLabel="Pickup Location"
+                compact
+              />
             </div>
 
             <div>
@@ -1501,7 +1434,7 @@ export default function App({ currentUser, onLogout, onHome }) {
           </div>
 
           <div className="flex gap-3 mt-5 flex-wrap">
-            {selected.status === "Approved" && (
+            {!isNgo && selected.status === "Approved" && (
               <button
                 className="button-primary cursor-pointer w-full justify-center"
                 onClick={() => handleStartDelivery(selected)}
@@ -1567,7 +1500,7 @@ export default function App({ currentUser, onLogout, onHome }) {
             </div>
           )}
 
-          {selected.status === "Approved" && (
+          {!isNgo && selected.status === "Approved" && (
             <button
               className="button-primary mt-5 w-full justify-center cursor-pointer"
               onClick={() => handleStartDelivery(selected)}
@@ -1620,54 +1553,14 @@ export default function App({ currentUser, onLogout, onHome }) {
                 <label className="block text-sm font-medium text-ink">
                   {isNgo ? "NGO Location" : "Your city / location"}
                 </label>
-                <span className="text-xs text-muted">Auto-detected via GPS</span>
+                <span className="text-xs text-muted">GPS or manual entry</span>
               </div>
 
-              <div className="p-3 rounded-lg border border-line bg-white space-y-2.5">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLocatingSettings(true);
-                    setSettingsLocError("");
-                    try {
-                      const loc = await getCurrentLocation();
-                      setSettingsLocation(loc.formattedLocation);
-                    } catch (err) {
-                      setSettingsLocError(err.message || "Failed to detect location.");
-                    } finally {
-                      setLocatingSettings(false);
-                    }
-                  }}
-                  disabled={locatingSettings}
-                  className="w-full py-2.5 px-3.5 rounded-md bg-[#eef4ea] hover:bg-[#e2edd9] text-forest border border-[#cadbc1] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  {locatingSettings ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin text-forest" />
-                      Detecting current location…
-                    </>
-                  ) : (
-                    <>
-                      <MapPin size={15} className="text-forest" />
-                      {settingsLocation ? "Re-detect current location" : "Use current location"}
-                    </>
-                  )}
-                </button>
-
-                {settingsLocation && (
-                  <div className="flex items-start gap-2 pt-1 text-xs text-forest bg-forest/5 p-2.5 rounded border border-forest/15">
-                    <Check size={14} className="shrink-0 mt-0.5 text-forest" />
-                    <div>
-                      <strong className="block text-ink">Registered Location:</strong>
-                      <span className="text-muted leading-relaxed">{settingsLocation}</span>
-                    </div>
-                  </div>
-                )}
-
-                {settingsLocError && (
-                  <p className="text-xs text-red-600 pt-1">{settingsLocError}</p>
-                )}
-              </div>
+              <LocationPicker
+                location={settingsLocation}
+                onLocationChange={setSettingsLocation}
+                statusLabel="Registered Location"
+              />
             </div>
 
             <button className="button-primary w-full justify-center cursor-pointer mt-2">
